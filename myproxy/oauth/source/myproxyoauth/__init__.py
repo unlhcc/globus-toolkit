@@ -23,8 +23,10 @@ import os
 import pkgutil
 import myproxyoauth.templates
 import myproxyoauth.static
+from beaker.middleware import SessionMiddleware
 
-logging.basicConfig(stream=sys.stderr)
+#logging.basicConfig(stream=sys.stderr)
+logging.basicConfig(filename='/tmp/oauth.out', level=logging.DEBUG)
 
 __path__ = pkgutil.extend_path(__path__, __name__)
 
@@ -49,10 +51,16 @@ class MyProxyOAuth(object):
             exc = None
             try:
                 try:
+                    self.logger.debug("Sending to route...")
                     return self.routes[route](environ, start_response)
                 except Exception, e:
                     headers = [("Content-Type", "text/plain")]
                     response = "500 Internal Server Error"
+                    import traceback
+                    self.logger.error(traceback.format_exc())
+                    self.logger.error(str(e))
+                    import getpass
+                    self.logger.error("User = %s" % getpass.getuser())
                     return str(e)
             finally:
                 if self.teardown_request_func is not None:
@@ -111,7 +119,10 @@ class MyProxyOAuth(object):
             self.teardown_request_func = func
         return decorator
 
+
+session_opts = { 'session.type' : 'file', 'session.cookie_expires' : True, 'session.data_dir' : '/tmp' }
 application = MyProxyOAuth()
+application = SessionMiddleware(application,session_opts)
 
 import myproxyoauth.views
 # vim: filetype=python: nospell:
