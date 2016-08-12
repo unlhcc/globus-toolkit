@@ -398,7 +398,7 @@ def finalize(environ, start_response):
                 joiner="&"
             headers = [
             ("Location", str("%s%soauth_token=%s&oauth_verifier=%s" % \
-                (transaction.oauth_callback, joiner oauth_temp_token, oauth_verifier)))]
+                (transaction.oauth_callback, joiner, oauth_temp_token, oauth_verifier)))]
 
             start_response(status, headers)
             return ""
