@@ -16,6 +16,8 @@ BuildArch:      noarch
 
 Requires(pre): shadow-utils
 Requires:	pyOpenSSL
+Requires:	python-beaker
+Requires:	duo-web-python
 
 %if 0%{?suse_version} == 0
 Requires:       mod_ssl
