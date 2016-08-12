@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/python
 #
 # Copyright 2010-2011 University of Chicago
 #
@@ -138,7 +138,7 @@ if __name__ == "__main__":
         os.seteuid(pwd.getpwnam(user)[2])
     # import after setuid due to side-effects of import (creating db)
     from myproxyoauth import application
-    application.logger.setLevel(log_level)
+    application.wrap_app.logger.setLevel(log_level)
     server.set_app(application)
     server.set_credentials(keypath=keyfile,certpath=certfile)
     try:

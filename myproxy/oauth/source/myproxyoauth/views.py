@@ -29,6 +29,8 @@ import os
 from myproxyoauth import application
 from myproxyoauth.database import db_session, Admin, Client, Transaction
 from urllib import quote
+import duo_web
+import ConfigParser
 
 
 def get_template(name):
@@ -74,14 +76,14 @@ def url_reconstruct(environ):
         url += '?' + environ['QUERY_STRING']
     return url
 
-@application.route('/test')
+@application.wrap_app.route('/test')
 def test(environ, start_response):
     status = "403 Forbidden"
     headers = [("Content-Type", "text/plain")]
     start_response(status, headers)
     return "bad"
 
-@application.teardown_request
+@application.wrap_app.teardown_request
 def shutdown_session(exception=None):
     db_session.remove()
 
@@ -90,7 +92,7 @@ Implementation of OAuth for MyProxy Protocol,
 https://docs.google.com/document/pub?id=10SC7oSURc-EgxMQjcCS50gz0u2HzDJAFiG5hEHiSdxA
 """
 
-@application.route('/initiate', methods=['GET'])
+@application.wrap_app.route('/initiate', methods=['GET'])
 def initiate(environ, start_response):
     request = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ)
     oauth_signature_method = request.getvalue('oauth_signature_method')
@@ -113,7 +115,7 @@ def initiate(environ, start_response):
     if len(clients) > 0:
         client = clients[0]
     if client is None:
-        application.logger.error('Unregistered client requested a temporary token.')
+        application.wrap_app.logger.error('Unregistered client requested a temporary token.')
         status = "403 Not authorized"
         headers = [
                 ("Content-Type", "text/plain") ]
@@ -145,7 +147,7 @@ def initiate(environ, start_response):
 			unpack_from(str(len)+"B", n, 4))
 	    keytuple = (decode(k.n), decode(k.e))
         except Exception, e:
-            application.logger.error(str(sys.exc_info()))
+            application.wrap_app.logger.error(str(sys.exc_info()))
             raise(e)
 
 	key = Crypto.PublicKey.RSA.construct(keytuple)
@@ -159,7 +161,7 @@ def initiate(environ, start_response):
     try:
         o_server.verify_request(o_request, o_consumer, None)
     except oauth.Error, e:
-        application.logger.error(str(e))
+        application.wrap_app.logger.error(str(e))
         status = "403 Not authorized"
         headers = [
                 ("Content-Type", "text/plain") ]
@@ -189,7 +191,7 @@ def initiate(environ, start_response):
 
     return "oauth_token=%s&oauth_callback_confirmed=true" % oauth_temp_token
 
-@application.route('/authorize', methods=['GET'])
+@application.wrap_app.route('/authorize', methods=['GET'])
 def get_authorize(environ, start_response):
     request = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ)
     oauth_temp_token = str(request.getvalue('oauth_token'))
@@ -232,7 +234,7 @@ def get_authorize(environ, start_response):
     return res
 
 
-@application.route('/authorize', methods=['POST'])
+@application.wrap_app.route('/authorize', methods=['POST'])
 def post_authorize(environ, start_response):
     request = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ)
     oauth_temp_token = str(request.getvalue('oauth_token'))
@@ -255,7 +257,7 @@ def post_authorize(environ, start_response):
                 transaction.certlifetime,
                 username, passphrase, client.myproxy_server)
     except Exception, e:
-        application.logger.debug(str(e))
+        application.wrap_app.logger.debug(str(e))
         status = "200 Ok"
         headers = [ ("Content-Type", "text/html") ]
         styles = ['static/oauth.css']
@@ -273,28 +275,155 @@ def post_authorize(environ, start_response):
         start_response(status, headers, e)
         return res
 
-    oauth_verifier = 'myproxy:oa4mp,2012:/verifier/' \
+    session = environ['beaker.session']
+    session['user_id'] = username
+    session['cert'] = cert
+    session['transaction'] = transaction
+    session['oauth_temp_token'] = oauth_temp_token
+    session['client_name'] = client.name
+    session['client_url'] = client.home_url
+    session.save()
+    duoconf = ConfigParser.ConfigParser()
+    if not duoconf.read('/etc/duo/duo_web.conf'):
+        application.wrap_app.logger.error('Cannot read Duo config file at /etc/duo/duo_web.conf')
+    try:
+        sigrequest =  duo_web.sign_request(duoconf.get('duo','ikey'),duoconf.get('duo','skey'),duoconf.get('duo','akey'),username)
+    except ConfigParser.Error:
+        application.wrap_app.logger.error('Error reading one or more parameters from /etc/duo/duo_web.conf')
+        status = "200 Ok"
+        headers = [ ("Content-Type", "text/html") ]
+        styles = ['static/oauth.css']
+        css_path = os.path.join(
+            os.path.dirname(__file__), 'static', 'site.css')
+        if os.path.exists(css_path):
+            styles.append("static/site.css")
+        res = render_template('authorize.html',
+                    client_name=client.name,
+                    client_url=client.home_url,
+                    temp_token=oauth_temp_token,
+                    retry_message="An error has occurred, please try signing in again.  Contact support if this error persists.",
+                    stylesheets="\n".join(
+                        [("<link rel='stylesheet' type='text/css' href='%s' >" % x) for x in styles]))
+        start_response(status, headers)
+        return res
+    else:
+#   The duo_web.sign_request() function returns an error code (string) instead of raising an exception.
+        if sigrequest in [duo_web.ERR_USER,duo_web.ERR_IKEY,duo_web.ERR_SKEY,duo_web.ERR_AKEY,duo_web.ERR_UNKNOWN]:
+            application.wrap_app.logger.error("duo_web.sign_request() returned '%s'" % (sigrequest))
+            status = "200 Ok"
+            headers = [ ("Content-Type", "text/html") ]
+            styles = ['static/oauth.css']
+            css_path = os.path.join(
+                os.path.dirname(__file__), 'static', 'site.css')
+            if os.path.exists(css_path):
+                styles.append("static/site.css")
+            res = render_template('authorize.html',
+                    client_name=client.name,
+                    client_url=client.home_url,
+                    temp_token=oauth_temp_token,
+                    retry_message="An error has occurred, please try signing in again.  Contact support if this error persists.",
+                    stylesheets="\n".join(
+                        [("<link rel='stylesheet' type='text/css' href='%s' >" % x) for x in styles]))
+            start_response(status, headers)
+            return res
+
+        styles = ['static/oauth.css']
+        css_path = os.path.join(
+            os.path.dirname(__file__), 'static', 'site.css')
+        if os.path.exists(css_path):
+            styles.append("static/site.css")
+        res = render_template('duo.html',
+                sig_request="'%s'" % (sigrequest),
+                duohost="'%s'" % (duoconf.get('duo','host')),
+                retry_message="",
+                stylesheets="\n".join(
+                [("<link rel='stylesheet' type='text/css' href='%s' >" % x) for x in styles]))
+        status = "200 Ok"
+        headers = [ ("Content-Type", "text/html")]
+        start_response(status, headers)
+        return res
+
+
+@application.wrap_app.route('/finalize', methods=['POST'])
+def finalize(environ, start_response):
+    duoconf = ConfigParser.ConfigParser()
+    if not duoconf.read('/etc/duo/duo_web.conf'):
+        application.wrap_app.logger.error('Cannot open Duo config file at /etc/duo/duo_web.conf')
+    request = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ)
+    sig_response = str(request.getvalue('sig_response'))
+    session = environ['beaker.session']
+    cert = session['cert']
+    transaction = session['transaction']
+    oauth_temp_token = session['oauth_temp_token']
+    client_name = session['client_name']
+    client_url = session['client_url']
+
+    try:
+        authenticated_username = duo_web.verify_response(duoconf.get('duo','ikey'),duoconf.get('duo','skey'),duoconf.get('duo','akey'),sig_response)
+    except ConfigParser.Error:
+        application.wrap_app.logger.error('Error reading one or more parameters from /etc/duo/duo_web.conf')
+        status = "200 Ok"
+        headers = [ ("Content-Type", "text/html") ]
+        styles = ['static/oauth.css']
+        css_path = os.path.join(
+            os.path.dirname(__file__), 'static', 'site.css')
+        if os.path.exists(css_path):
+            styles.append("static/site.css")
+        res = render_template('authorize.html',
+                    client_name=client_name,
+                    client_url=client_url,
+                    temp_token=oauth_temp_token,
+                    retry_message="An error has occurred, please try signing in again.  Contact support if this error persists.",
+                    stylesheets="\n".join(
+                        [("<link rel='stylesheet' type='text/css' href='%s' >" % x) for x in styles]))
+        start_response(status, headers)
+        return res
+    else:
+#	The duo_web.verify_reponse() function returns None on failure.
+        if authenticated_username:
+            username = authenticated_username
+            oauth_verifier = 'myproxy:oa4mp,2012:/verifier/' \
             + ''.join([random.choice('0123456789abcdef') for i in range(32)]) \
             + '/' + str(int(time.time()))
 
-    transaction.oauth_verifier = oauth_verifier
-    transaction.certificate = cert
-    transaction.username = username
-    db_session.update_transaction(transaction)
-    db_session.commit()
+            transaction.oauth_verifier = oauth_verifier
+            transaction.certificate = cert
+            transaction.username = username
+            db_session.update_transaction(transaction)
+            db_session.commit()
 
-    status = "301 Moved Permanently"
-    joiner = "?"
-    if "?" in transaction.oauth_callback:
-        joiner="&"
-    headers = [
+            status = "301 Moved Permanently"
+            joiner = "?"
+            if "?" in transaction.oauth_callback:
+                joiner="&"
+            headers = [
             ("Location", str("%s%soauth_token=%s&oauth_verifier=%s" % \
-            (transaction.oauth_callback, joiner, oauth_temp_token, oauth_verifier)))]
+                (transaction.oauth_callback, joiner oauth_temp_token, oauth_verifier)))]
 
-    start_response(status, headers)
-    return ""
+            start_response(status, headers)
+            return ""
+        else:
+            application.wrap_app.logger.error("duo_web.verify_request() returned None")
+            status = "200 Ok"
+            headers = [ ("Content-Type", "text/html") ]
+            styles = ['static/oauth.css']
+            css_path = os.path.join(
+                os.path.dirname(__file__), 'static', 'site.css')
+            if os.path.exists(css_path):
+                styles.append("static/site.css")
+            res = render_template('authorize.html',
+                    client_name=client_name,
+                    client_url=client_url,
+                    temp_token=oauth_temp_token,
+                    retry_message="An error has occurred, please try signing in again.  Contact support if this error persists.",
+                    stylesheets="\n".join(
+                        [("<link rel='stylesheet' type='text/css' href='%s' >" % x) for x in styles]))
+            start_response(status, headers)
+            return res
 
-@application.route('/token', methods=['GET'])
+
+
+@application.wrap_app.route('/token', methods=['GET'])
 def token(environ, start_response):
     args = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ)
     oauth_signature_method = args.getvalue('oauth_signature_method')
@@ -327,7 +456,7 @@ def token(environ, start_response):
     resp = start_response(status, headers)
     return "oauth_token=%s" % str(oauth_access_token)
 
-@application.route('/getcert', methods=['GET'])
+@application.wrap_app.route('/getcert', methods=['GET'])
 def getcert(environ, start_response):
     args = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ)
     oauth_signature_method = args.getvalue('oauth_signature_method')
