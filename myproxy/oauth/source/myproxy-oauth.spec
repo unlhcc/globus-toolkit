@@ -1,7 +1,7 @@
 Name:		myproxy-oauth
 %global _name %(tr - _ <<< %{name})
 Version:	0.13
-Release:	1%{?dist}
+Release:	2%{?dist}
 Summary:	MyProxy OAuth Delegation Serice
 
 Group:		System Environment/Libraries
@@ -17,6 +17,8 @@ Requires(pre): shadow-utils
 Requires:	pyOpenSSL
 Requires:       mod_ssl
 Requires:       mod_wsgi
+Requires:	python-beaker
+Requires:	duo-web-python
 %if 0%{?rhel} != 0
 Requires:       python-crypto
 Requires:       m2crypto
@@ -107,6 +109,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/myproxy-oauth-setup
 
 %changelog
+* Wed Mar 20 2014 Adam Caprez <acaprez2@unl.edu> - 0.13-2
+- Added requirement for duo-web-python and python-beaker.
+
 * Wed Sep 04 2013 Globus Toolkit <support@globus.org> - 0.13-1
 - Fix regression on python path setting
 
