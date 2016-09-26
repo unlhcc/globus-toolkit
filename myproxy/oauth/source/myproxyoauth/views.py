@@ -483,7 +483,7 @@ def getcert(environ, start_response):
         return "Invalid access token"
 
     # Clear database
-    old_transactions = [(t) for t in db_session.get_transaction() if t.timestamp < int(time.time())]
+    old_transactions = [(t) for t in db_session.get_transaction() if t.timestamp < (int(time.time())-600)]
     db_session.delete_transactions(old_transactions)
     db_session.commit()
 
