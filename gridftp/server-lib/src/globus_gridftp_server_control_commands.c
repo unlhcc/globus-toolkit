@@ -30,6 +30,9 @@ static void
 globus_l_gsc_cmd_transfer(
     globus_i_gsc_cmd_wrapper_t *            wrapper);
 
+#define globus_l_gsc_is_ftp_code(_code) ((_code) >= 400 && (_code) <= 599)
+
+
 /*************************************************************************
  *                      simple commands
  *                      ---------------
@@ -340,9 +343,17 @@ globus_l_gsc_cmd_mdtm_cb(
         switch(response_type)
         {
             default:
-                code = 500;
-                /* TODO: evaulated error type */
-                msg = globus_libc_strdup("Command failed");
+                if (globus_l_gsc_is_ftp_code(response_type))
+                {
+                    code = response_type;
+                    msg = strdup(response_msg);
+                    response_msg = NULL;
+                }
+                else
+                {
+                    code = 500;
+                    msg = globus_libc_strdup(_FSMSL("Command failed"));
+                }
                 break;
         }
     }
@@ -765,8 +776,17 @@ globus_l_gsc_cmd_stat_cb(
                 break;
 
             default:
-                code = 500;
-                msg = globus_libc_strdup(_FSMSL("Command failed"));
+                if (globus_l_gsc_is_ftp_code(response_type))
+                {
+                    code = response_type;
+                    msg = strdup(response_msg);
+                    response_msg = NULL;
+                }
+                else
+                {
+                    code = 500;
+                    msg = globus_libc_strdup(_FSMSL("Command failed"));
+                }
                 break;
         }
         preline = NULL;
@@ -834,7 +854,7 @@ globus_l_gsc_cmd_stat_cb(
         msg = globus_common_create_string("%s : %s", tmp_ptr, response_msg);
         free(tmp_ptr);
     }
-    if(code >= 500)
+    if(code >= 400)
     {
         tmp_ptr = globus_gsc_string_to_959(code, msg, preline);
     }
@@ -857,7 +877,7 @@ globus_l_gsc_cmd_stat_cb(
         }
         globus_gsc_959_finished_command(op, tmp_ptr);
     }
-    if(code >= 500)
+    if(code >= 400)
     {
         globus_free(tmp_ptr);
     }
@@ -964,8 +984,17 @@ globus_l_gsc_cmd_size_cb(
                 break;
 
             default:
-                code = 550;
-                msg = globus_libc_strdup(_FSMSL("Command failed"));
+                if (globus_l_gsc_is_ftp_code(response_type))
+                {
+                    code = response_type;
+                    msg = strdup(response_msg);
+                    response_msg = NULL;
+                }
+                else
+                {
+                    code = 550;
+                    msg = globus_libc_strdup(_FSMSL("Command failed"));
+                }
                 break;
         }
     }
@@ -1881,9 +1910,17 @@ globus_l_gsc_cmd_pasv_cb(
             break;
             
           default:
-            /* TODO: evaulated error type */
-            err_code = 500;
-            err_msg = "Command failed.\r\n";
+                if (globus_l_gsc_is_ftp_code(response_type))
+                {
+                    err_code = response_type;
+                    err_msg = strdup(response_msg);
+                    response_msg = NULL;
+                }
+                else
+                {
+                    err_code = 500;
+                    err_msg = "Command failed.\r\n";
+                }
             break;
         }
         goto err;
@@ -2323,9 +2360,17 @@ globus_l_gsc_cmd_port_cb(
             break;
             
           default:
-             /* TODO: evaulated error type */
-            code = 500;
-            msg = strdup(_FSMSL("PORT Command failed."));
+            if (globus_l_gsc_is_ftp_code(response_type))
+            {
+                code = response_type;
+                msg = strdup(response_msg);
+                response_msg = NULL;
+            }
+            else
+            {
+                code = 500;
+                msg = strdup(_FSMSL("PORT Command failed."));
+            }
             break;
         }
     }
@@ -2650,9 +2695,17 @@ globus_l_gsc_data_cb(
 
     if(response_type != GLOBUS_GRIDFTP_SERVER_CONTROL_RESPONSE_SUCCESS)
     {
-        /* TODO: evaulated error type */
-        code = 500;
-        msg = strdup(_FSMSL("Command failed."));
+        if (globus_l_gsc_is_ftp_code(response_type))
+        {
+            code = response_type;
+            msg = strdup(response_msg);
+            response_msg = NULL;
+        }
+        else
+        {
+            code = 500;
+            msg = strdup(_FSMSL("Command failed."));
+        }
     }
     else
     {

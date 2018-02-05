@@ -19,6 +19,7 @@
 #include "globus_xio.h"
 #include "globus_xio_file_driver.h"
 #include <openssl/md5.h>
+#include <zlib.h>
 #include "version.h"
 
 #include <utime.h>
@@ -27,6 +28,7 @@
 #endif
 
 #ifdef TARGET_ARCH_WIN32
+#include <time.h>
 #define S_ISLNK(x) 0
 #define lstat(x,y) stat(x,y)
 #define mkdir(x,y) mkdir(x)
@@ -36,31 +38,7 @@
 #define realpath(x,y) strcpy(y,x)
 #define scandir(a,b,c,d) 0
 #define alphasort(x,y) 0
-#endif
-
-#ifdef TARGET_ARCH_WIN32
-#define getuid() 1
-#define getpwuid(x) 0
-#define initgroups(x,y) -1
-#define getgroups(x,y) -1
-#define setgroups(x,y) 0
-#define setgid(x) 0
-#define setuid(x) 0
-#define sync() 0
-#define fork() -1
-#define setsid() -1
-#define chroot(x) -1
-#define globus_libc_getpwnam_r(a,b,c,d,e) -1
-#define globus_libc_getpwuid_r(a,b,c,d,e) -1
-#endif
-
-#ifdef TARGET_ARCH_WIN32
-
-#define getpwnam(x) 0
-
-#define getgrgid(x) 0
 #define getgrnam(x) 0
-
 #endif
 
 
@@ -96,6 +74,14 @@ typedef void
     char *                              cksm,
     void *                              user_arg);
 
+
+enum
+{
+    GLOBUS_GFS_FILE_CKSM_TYPE_NONE = 0,
+    GLOBUS_GFS_FILE_CKSM_TYPE_ADLER32,
+    GLOBUS_GFS_FILE_CKSM_TYPE_MD5
+};
+
 typedef struct globus_l_gfs_file_cksm_monitor_s
 {
     globus_gfs_operation_t              op;
@@ -111,9 +97,12 @@ typedef struct globus_l_gfs_file_cksm_monitor_s
     int                                 marker_freq;
     globus_bool_t                       send_marker;
     globus_off_t                        total_bytes;
-    
+
+    unsigned char                       cksum_type;
     MD5_CTX                             mdctx;
-    globus_byte_t                       buffer[1];
+    uint32_t                            adler32ctx;
+
+    globus_byte_t                       buffer[];
 } globus_l_gfs_file_cksm_monitor_t;
 
 typedef struct 
@@ -150,7 +139,7 @@ typedef struct
     char *                              expected_cksm;
     char *                              expected_cksm_alg;
     time_t                              utime;
-    /* added for multicast stuff, but cold be genreally useful */
+    /* added for multicast stuff, but cold be generally useful */
     gfs_l_file_session_t *              session;
 
     globus_result_t                     finish_result;
@@ -446,15 +435,8 @@ globus_l_gfs_file_cksm_verify(
     }
     else if(strcmp(monitor->expected_cksm, cksm) != 0)
     {
-        char *                          msg = NULL;
-        msg = globus_common_create_string(
-            "Actual checksum of %s does not match expected checksum of %s.",
-            cksm, monitor->expected_cksm);
-        monitor->finish_result = GlobusGFSErrorGeneric(msg);
-        if(msg)
-        {
-            globus_free(msg);
-        }                       
+        monitor->finish_result = GlobusGFSErrorIncorrectChecksum(
+                cksm, monitor->expected_cksm);
     }
 
     globus_gridftp_server_finished_transfer(
@@ -1608,6 +1590,43 @@ error:
     return result;
 }
 
+#ifdef WIN32
+
+/* utime on win32 does not work with directories.
+    we can work around that by opening a HANDLE with the 
+    FILE_FLAG_BACKUP_SEMANTICS flag, getting the fd from that, and calling 
+    _futime on that fd.
+
+    we could call SetFileTime() with the HANDLE, but there are quirks with 
+    DST that result in the time returned by stat() being different than the
+    set time depending on the date and current DST state.  the perl module
+    Win32-UTCFileTime documents that bit of fun.
+*/
+    
+static BOOL 
+utime_win(
+    const char *                        path,
+    struct utimbuf *                    ubuf)
+{
+    HANDLE                              hFile;
+    int                                 rc;
+    int                                 fd;
+    hFile = CreateFile(
+        path, FILE_WRITE_ATTRIBUTES, FILE_SHARE_WRITE, 0, 
+        OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0);
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        errno = GetLastError();
+        return -1;
+    }
+    fd = _open_osfhandle((intptr_t) hFile, 0);
+    rc = _futime(fd, (struct _utimbuf *) ubuf);
+    /* _close closes the underlying HANDLE */
+    _close(fd);
+    return rc;
+}
+#endif
+
 static
 globus_result_t
 globus_l_gfs_file_utime(
@@ -1623,8 +1642,12 @@ globus_l_gfs_file_utime(
 
     ubuf.modtime = modtime;
     ubuf.actime = time(NULL);
-    
+
+#ifdef WIN32
+    rc = utime_win(pathname, &ubuf);
+#else   
     rc = utime(pathname, &ubuf);
+#endif
     if(rc != 0)
     {
         result = GlobusGFSErrorSystemError("utime", errno);
@@ -1715,9 +1738,11 @@ globus_l_gfs_file_cksm_read_cb(
 {
     globus_l_gfs_file_cksm_monitor_t *  monitor;
     globus_bool_t                       eof = GLOBUS_FALSE;
+    char *                              cksmptr = NULL;
     char *                              md5ptr;
     unsigned char                       md[MD5_DIGEST_LENGTH];
     char                                md5sum[MD5_DIGEST_LENGTH * 2 + 1] = {0};
+    char                                adler32_human[2*sizeof(uint32_t)+1];
     int                                 i;    
     GlobusGFSName(globus_l_gfs_file_cksm_read_cb);
     GlobusGFSFileDebugEnter();
@@ -1748,8 +1773,15 @@ globus_l_gfs_file_cksm_read_cb(
         }
     }
     monitor->total_bytes += nbytes;
-    
-    MD5_Update(&monitor->mdctx, buffer, nbytes);
+
+    if(monitor->cksum_type == GLOBUS_GFS_FILE_CKSM_TYPE_MD5)
+    {
+        MD5_Update(&monitor->mdctx, buffer, nbytes);
+    }
+    else if (monitor->cksum_type == GLOBUS_GFS_FILE_CKSM_TYPE_ADLER32)
+    {
+        monitor->adler32ctx = adler32(monitor->adler32ctx, buffer, nbytes);
+    }
 
     if(!eof)
     {
@@ -1791,31 +1823,38 @@ globus_l_gfs_file_cksm_read_cb(
             monitor->marker_handle = GLOBUS_NULL_HANDLE;
         }
         
-        MD5_Final(md, &monitor->mdctx);
-    
         globus_xio_register_close(
             handle,
             NULL,
             globus_l_gfs_file_close_cb,
             NULL);
-            
-        md5ptr = md5sum;
-        for(i = 0; i < MD5_DIGEST_LENGTH; i++)
+
+        if (monitor->cksum_type == GLOBUS_GFS_FILE_CKSM_TYPE_MD5)
         {
-           sprintf(md5ptr, "%02x", md[i]);
-           md5ptr++;
-           md5ptr++;
+            MD5_Final(md, &monitor->mdctx);
+            md5ptr = md5sum;
+            for(i = 0; i < MD5_DIGEST_LENGTH; i++)
+            {
+               md5ptr += sprintf(md5ptr, "%02x", md[i]);
+            }
+            cksmptr = md5sum;
+        }
+        else if (monitor->cksum_type == GLOBUS_GFS_FILE_CKSM_TYPE_ADLER32)
+        {
+            snprintf(adler32_human, sizeof(adler32_human),
+                "%08x", monitor->adler32ctx);
+            cksmptr = adler32_human;
         }
 
         if(monitor->internal_cb)
         {
             monitor->internal_cb(
-                GLOBUS_SUCCESS, md5sum, monitor->internal_cb_arg);
+                GLOBUS_SUCCESS, cksmptr, monitor->internal_cb_arg);
         }
         else
         {
             globus_gridftp_server_finished_command(
-                monitor->op, GLOBUS_SUCCESS, md5sum);
+                monitor->op, GLOBUS_SUCCESS, cksmptr);
         }   
         
         globus_free(monitor);
@@ -1918,7 +1957,8 @@ globus_l_gfs_file_open_cksm_cb(
         }
     }
     
-    MD5_Init(&monitor->mdctx);  
+    MD5_Init(&monitor->mdctx);
+    monitor->adler32ctx = adler32(0, NULL, 0);
     
     result = globus_xio_register_read(
         handle,
@@ -1983,7 +2023,13 @@ globus_l_gfs_file_cksm(
         result = GlobusGFSErrorGeneric("Invalid offset.");
         goto param_error;
     }
-        
+
+    if (strcasecmp(algorithm, "md5") && strcasecmp(algorithm, "adler32"))
+    {
+        result = GlobusGFSErrorGeneric("Unknown checksum algorithm requested.");
+        goto alg_error;
+    }
+
     result = globus_xio_attr_init(&attr);
     if(result != GLOBUS_SUCCESS)
     {
@@ -2063,6 +2109,16 @@ globus_l_gfs_file_cksm(
     monitor->internal_cb = internal_cb;
     monitor->internal_cb_arg = internal_cb_arg;
 
+    monitor->cksum_type = 0;
+    if(!strcasecmp("md5", algorithm))
+    {
+        monitor->cksum_type = GLOBUS_GFS_FILE_CKSM_TYPE_MD5;
+    }
+    else if(!strcasecmp("adler32", algorithm))
+    {
+        monitor->cksum_type = GLOBUS_GFS_FILE_CKSM_TYPE_ADLER32;
+    }
+
     result = globus_xio_register_open(
         file_handle,
         pathname,
@@ -2096,6 +2152,7 @@ error_cntl:
     globus_xio_attr_destroy(attr);
     
 error_attr:
+alg_error:
 param_error:
     GlobusGFSFileDebugExitWithError();
     return result;

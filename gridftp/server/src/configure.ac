@@ -1,11 +1,11 @@
 AC_PREREQ([2.60])
 
-AC_INIT([globus_gridftp_server],[11.1],[https://globus.atlassian.net/])
+AC_INIT([globus_gridftp_server],[12.4],[https://github.com/globus/globus-toolkit/issues])
 AC_CONFIG_MACRO_DIR([m4])
 AC_SUBST([MAJOR_VERSION], [${PACKAGE_VERSION%%.*}])
 AC_SUBST([MINOR_VERSION], [${PACKAGE_VERSION##*.}])
-AC_SUBST([AGE_VERSION], [5])
-AC_SUBST([PACKAGE_DEPS], ["globus-common >= 16, globus-xio >= 5, globus-xio-gsi-driver >= 2, globus-gfork >= 3, globus-gridftp-server-control >= 4, globus-ftp-control >= 7, globus-authz >= 2, globus-usage >= 3, globus-gssapi-gsi >= 10, globus-gss-assist >= 9, globus-gsi-credential >= 6, globus-gsi-sysconfig >= 5, globus-io >= 9, openssl >= 0.9.8"])
+AC_SUBST([AGE_VERSION], [6])
+AC_SUBST([PACKAGE_DEPS], ["globus-common >= 17, globus-xio >= 5, globus-xio-gsi-driver >= 2, globus-gfork >= 3, globus-gridftp-server-control >= 5, globus-ftp-control >= 7, globus-authz >= 2, globus-usage >= 3, globus-gssapi-gsi >= 10, globus-gss-assist >= 9, globus-gsi-credential >= 6, globus-gsi-sysconfig >= 5, globus-io >= 9"])
 
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([1.11 foreign parallel-tests tar-pax])
@@ -16,7 +16,20 @@ m4_include([dirt.sh])
 AC_SUBST(DIRT_TIMESTAMP)
 AC_SUBST(DIRT_BRANCH_ID)
 
+PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.0],
+    [OPENSSL_PKGCONFIG="openssl >= 1.0"],
+    [
+        PKG_CHECK_MODULES([OPENSSL], [openssl101e])
+        OPENSSL_PKGCONFIG="openssl101e"
+    ])
+
+AC_SUBST([OPENSSL_PKGCONFIG])
 PKG_CHECK_MODULES([PACKAGE_DEP], $PACKAGE_DEPS)
+
+PKG_CHECK_MODULES([ZLIB], [zlib],,
+    AC_CHECK_LIB([z], [adler32], [ZLIB_LIBS="-lz"], 
+        AC_MSG_ERROR([zlib not found.])))
+AC_SUBST([ZLIB_LIBS])
 
 AC_ARG_WITH([preloaded-modules],
     AS_HELP_STRING([--with-preloaded-modules=MODULE,...],
@@ -52,12 +65,14 @@ fi
 AC_PROG_CXX
 
 AC_SUBST([MODULE_DLPREOPEN], [$dlpreopen_links])
-AC_SUBST([MODULE_DLOPEN], [$dlpen_links])
+AC_SUBST([MODULE_DLOPEN], [$dlopen_links])
 
 if test "x$link_with_cxx" = x1; then
     AC_MSG_NOTICE([Linking with C++])
 fi
 
+AC_PATH_PROGS([OPENSSL], openssl)
+AM_CONDITIONAL([ENABLE_TESTS], [test x"$OPENSSL" != x])
 AM_CONDITIONAL([LINK_WITH_CXX], [test x"$link_with_cxx" = x1])
 
 AC_MSG_CHECKING([builtin modules])
@@ -105,6 +120,7 @@ AC_SUBST(BUILTIN_EXTENSIONS_DEC)
 AC_SUBST(BUILTIN_EXTENSIONS_DEF)
 
 AC_CHECK_FUNCS(fgetpwent)
+AC_FUNC_STRERROR_R
 AC_C_BIGENDIAN
 
 AC_PATH_PROGS(PERL, perl perl5)
@@ -203,50 +219,12 @@ AC_SUBST(CHKCONFIG_DEFAULT)
 AC_SUBST(DEFAULT_START_LINE)
 AC_SUBST(DEFAULT_STOP_LINE)
 
-AC_PATH_PROG(XSLTPROC, "xsltproc")
-AC_PATH_PROG(XMLLINT, "xmllint")
-AC_MSG_CHECKING([docbook dtd])
-DOCBOOK_DTD=http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd
-docbook_dtd_available=no
-
-if test "$XMLLINT" != no; then
-    cat <<EOF | $XMLLINT --nonet --dtdvalid $DOCBOOK_DTD - > /dev/null 2>&1
-<?xml version="1.0" encoding="ISO-8859-1"?>
-<!DOCTYPE jobtitle PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN" "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
-<jobtitle/>
-EOF
-    if test $? = 0; then
-        docbook_dtd_available=yes
-    fi
-fi
-AC_MSG_RESULT($docbook_dtd_available)
-AC_SUBST(DOCBOOK_DTD)
-
 AC_PATH_PROG(FAKEROOT, "fakeroot")
 AM_CONDITIONAL(TEST_FAKEROOT, test -n "$FAKEROOT")
 
-AC_MSG_CHECKING([docbook xsl])
-MAN_XSL=http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl
-docbook_xsl_available=no
 
-if test "$XSLTPROC" != no; then
-    cat <<EOF | $XSLTPROC --nonet http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl  - > /dev/null 2>&1
-<?xml version="1.0" encoding="ISO-8859-1"?>
-<!DOCTYPE jobtitle PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN" "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
-<jobtitle/>
-EOF
-    if test $? = 0; then
-        docbook_xsl_available=yes
-    fi
-fi
-AC_MSG_RESULT($docbook_xsl_available)
-AC_SUBST(MAN_XSL)
-
-AM_CONDITIONAL(BUILD_MANPAGES, [
-                test "$docbook_xsl_available" != "no" && \
-                test "$docbook_dtd_available" != "no" && \
-                test "$XSLTPROC" != "no" && \
-                test "$XMLLINT" != "no"])
+AC_PATH_PROGS([A2X], [a2x a2x.py])
+AM_CONDITIONAL(BUILD_MANPAGES, [test "x$A2X" != x])
 
 AC_CONFIG_HEADERS(globus_i_gridftp_server_config.h)
 
@@ -265,6 +243,7 @@ AC_CONFIG_FILES(
     gridftp.xinetd.default
     gridftp.gfork.default
     test/Makefile
+    test/testcred.cnf
     version.h
     extensions.h)
 

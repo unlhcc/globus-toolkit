@@ -1,3 +1,46 @@
+globus-ftp-client (8.36-2+gt6.@distro@) @distro@; urgency=low
+
+  * Replace deprecated perl POSIX::tmpnam with File::Temp::tmpnam
+  * Fix install location
+
+ -- Globus Toolkit <support@globus.org>  Mon, 26 Jun 2017 16:02:33 -0400
+
+globus-ftp-client (8.35-1+gt6.@distro@) @distro@; urgency=low
+
+  * Remove some redundent tests to reduce test time
+
+ -- Globus Toolkit <support@globus.org>  Fri, 24 Mar 2017 16:21:26 -0400
+
+globus-ftp-client (8.34-1+gt6.@distro@) @distro@; urgency=low
+
+  * add FTP_TEST_RESTART_AFTER_RANGE=n to force restarts after n range markers for restart points 22 and 24 (RETR_RESPONSE and STOR_RESPONSE)
+
+ -- Globus Toolkit <support@globus.org>  Thu, 09 Mar 2017 13:00:06 -0600
+
+globus-ftp-client (8.33-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update for el.5 openssl101e
+
+ -- Globus Toolkit <support@globus.org>  Thu, 08 Sep 2016 13:53:09 -0400
+
+globus-ftp-client (8.32-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix tests run as root
+
+ -- Globus Toolkit <support@globus.org>  Fri, 19 Aug 2016 10:12:32 -0400
+
+globus-ftp-client (8.31-1+gt6.@distro@) @distro@; urgency=low
+
+  * Makefile fix
+
+ -- Globus Toolkit <support@globus.org>  Thu, 18 Aug 2016 16:09:07 -0400
+
+globus-ftp-client (8.30-1+gt6.@distro@) @distro@; urgency=low
+
+  * Updates for OpenSSL 1.1.0
+
+ -- Globus Toolkit <support@globus.org>  Tue, 16 Aug 2016 15:45:17 -0400
+
 globus-ftp-client (8.29-1+gt6.@distro@) @distro@; urgency=low
 
   * Don't overwite LDFLAGS

@@ -1,18 +1,26 @@
 %if %{?fedora}%{!?fedora:0} <= 16 || %{?rhel}%{!?rhel:0} < 7
 %global backwardcompat "--with-backward-compatibility-hack"
 %endif
+%global soname 0
+
+%if %{?suse_Version}%{!?suse_Version:0} >= 1315
+%global apache_license Apache-2.0
+%else
+%global apache_license ASL 2.0
+%endif
 
 %{!?perl_vendorlib: %global perl_vendorlib %(eval "`perl -V:installvendorlib`"; echo $installvendorlib)}
 
 Name:		globus-common
 %global _name %(tr - _ <<< %{name})
-Version:	16.5
+Version:	17.3
 Release:	1%{?dist}
-Vendor:	Globus Support
+Vendor:		Globus Support
 Summary:	Globus Toolkit - Common Library
 
+
 Group:		System Environment/Libraries
-License:	ASL 2.0
+License:	%{apache_license}
 URL:		http://toolkit.globus.org/
 Source:	http://toolkit.globus.org/ftppub/gt6/packages/%{_name}-%{version}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -38,6 +46,11 @@ BuildRequires:	graphviz
 BuildRequires:	libtool-ltdl-devel
 %endif
 %endif
+%if 0%{?suse_version} >= 1315
+BuildRequires:   autoconf
+BuildRequires:   automake
+BuildRequires:   libtool
+%endif
 %if "%{?rhel}" == "5"
 BuildRequires:	graphviz-gd
 %else
@@ -49,10 +62,23 @@ BuildRequires:	libtool >= 2.2
 %endif
 BuildRequires:  pkgconfig
 
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global mainpkg lib%{_name}%{soname}
+%global nmainpkg -n %{mainpkg}
+%else
+%global mainpkg %{name}
+%endif
+
+%if %{?nmainpkg:1}%{!?nmainpkg:0} != 0
+%package %{?nmainpkg}
+Summary:	Globus Toolkit - Common Library
+Group:		System Environment/Libraries
+%endif
+
 %package progs
 Summary:	Globus Toolkit - Common Library Programs
 Group:		Applications/Internet
-Requires:	%{name}%{?_isa} = %{version}-%{release}
+Requires:	%{mainpkg}%{?_isa} = %{version}-%{release}
 %if 0%{?suse_version} > 0
     %if %{suse_version} < 1140
 Requires:     perl = %{perl_version}
@@ -66,7 +92,7 @@ Requires:	perl(:MODULE_COMPAT_%(eval "`perl -V:version`"; echo $version))
 %package devel
 Summary:	Globus Toolkit - Common Library Development Files
 Group:		Development/Libraries
-Requires:	%{name}%{?_isa} = %{version}-%{release}
+Requires:	%{mainpkg}%{?_isa} = %{version}-%{release}
 %if 0%{?suse_version} == 0
 %if 0%{?rhel} > 4 || 0%{?rhel} == 0
 Requires:	libtool-ltdl-devel
@@ -91,7 +117,18 @@ Group:		Documentation
 %if %{?fedora}%{!?fedora:0} >= 10 || %{?rhel}%{!?rhel:0} >= 6
 BuildArch:	noarch
 %endif
-Requires:	%{name} = %{version}-%{release}
+Requires:	%{mainpkg} = %{version}-%{release}
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%description %{?nmainpkg}
+The Globus Toolkit is an open source software toolkit used for building Grid
+systems and applications. It is being developed by the Globus Alliance and
+many others all over the world. A growing number of projects and companies are
+using the Globus Toolkit to unlock the potential of grids for their cause.
+
+The %{mainpkg} package contains:
+Common Library
+%endif
 
 %description
 The Globus Toolkit is an open source software toolkit used for building Grid
@@ -143,7 +180,7 @@ EOF
 chmod +x %{__perl_requires}
 
 %build
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 # Remove files that should be replaced during bootstrap
 rm -rf autom4te.cache
 
@@ -170,16 +207,19 @@ make install DESTDIR=$RPM_BUILD_ROOT
 find $RPM_BUILD_ROOT%{_libdir} -name 'lib*.la' -exec rm -v '{}' \;
 
 %check
+%if %{?suse_version}%{!?suse_version:0} >= 1315 || %{?fedora}%{!?fedora:0} >= 26
+export NO_EXTERNAL_NET=1
+%endif
 make %{?_smp_mflags} check
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%post -p /sbin/ldconfig
+%post %{?nmainpkg} -p /sbin/ldconfig
 
-%postun -p /sbin/ldconfig
+%postun %{?nmainpkg} -p /sbin/ldconfig
 
-%files 
+%files %{?nmainpkg}
 %defattr(-,root,root,-)
 %dir %{_docdir}/%{name}-%{version}
 %dir %{_datadir}/globus
@@ -212,6 +252,40 @@ rm -rf $RPM_BUILD_ROOT
 %{_docdir}/%{name}-%{version}/html/*
 
 %changelog
+* Thu Jan 25 2018 Globus Toolkit <support@globus.org> - 17.3-1
+- use win compatible unsetenv
+
+* Thu Sep 28 2017 Globus Toolkit <support@globus.org> - 17.2-1
+- Merge #110 from ellert: Fix regex for perl 5.26 compatibility
+- Fix globus_location_test when GLOBUS_LOCATION environment is set
+
+* Mon Jun 19 2017 Globus Toolkit <support@globus.org> - 17.1-2
+- Skip network tests on fedora 26
+
+* Fri Mar 03 2017 Globus Toolkit <support@globus.org> - 17.1-1
+- Add missing file
+
+* Fri Mar 03 2017 Globus Toolkit <support@globus.org> - 17.0-1
+- add additional error handling api
+
+* Fri Jan 06 2017 Globus Toolkit <support@globus.org> - 16.9-1
+- Fix crash in globus_eval_path
+
+* Thu Sep 08 2016 Globus Toolkit <support@globus.org> - 16.8-2
+- Rebuild after changes for el.5 with openssl101e
+
+* Thu Sep 08 2016 Globus Toolkit <support@globus.org> - 16.8-1
+- Replace docbook with asciidoc
+
+* Wed Aug 24 2016 Globus Toolkit <support@globus.org> - 16.7-4
+- SLES 12 packaging conditionals
+
+* Sat Aug 20 2016 Globus Toolkit <support@globus.org> - 16.7-1
+- Update bug report URL
+
+* Tue Aug 16 2016 Globus Toolkit <support@globus.org> - 16.6-1
+- Updates for running thread tests without installing
+
 * Wed Jun 22 2016 Globus Toolkit <support@globus.org> - 16.5-1
 - don't redefine snprintf and vsnprintf when using mingw versions
 
@@ -340,10 +414,10 @@ rm -rf $RPM_BUILD_ROOT
 - Repackage for GT6 without GPT
 
 * Mon Jul 08 2013 Globus Toolkit <support@globus.org> - 14.10-3
-- Incorrect %dir for license file
+- Incorrect %%dir for license file
 
 * Wed Jun 26 2013 Globus Toolkit <support@globus.org> - 14.10-2
-- GT-424: New Fedora Packaging Guideline - no %_isa in BuildRequires
+- GT-424: New Fedora Packaging Guideline - no %%_isa in BuildRequires
 
 * Mon Mar 18 2013 Globus Toolkit <support@globus.org> - 14.10-1
 - GT-354: Compatibility with automake 1.13

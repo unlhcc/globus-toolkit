@@ -544,9 +544,15 @@ myproxy_bootstrap_trust(myproxy_socket_attrs_t *attrs)
     }
 
     /* get trust root(s) from the myproxy-server */
+    #if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+    ctx = SSL_CTX_new(TLS_client_method());
+    SSL_CTX_set_min_proto_version(ctx, TLS1_VERSION);
+    #else
     ctx = SSL_CTX_new(SSLv23_client_method());
-    SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 |
-			SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
+    /* No longer setting SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS since it seemed
+     * like a stop-gap measure to interoperate with broken SSL */
+    SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
+    #endif
 
     if (!(sbio = BIO_new_ssl_connect(ctx))) goto error;
     if ( (sockfd = get_connected_myproxy_host_socket(
@@ -554,7 +560,9 @@ myproxy_bootstrap_trust(myproxy_socket_attrs_t *attrs)
         goto error;
     }
     BIO_get_ssl(sbio, &ssl);
-    BIO_set_conn_int_port(sbio, &attrs->psport);
+    char chport[6];
+    snprintf(chport, sizeof(chport), "%d", attrs->psport);
+    BIO_set_conn_port(sbio, chport);
     BIO_set_conn_hostname(sbio, attrs->pshost);
     BIO_set_fd(sbio, sockfd, 0);
 
@@ -633,7 +641,6 @@ myproxy_bootstrap_trust(myproxy_socket_attrs_t *attrs)
         SSL_CTX_free(ctx);
     }
     if (sbio) {
-        BIO_ssl_shutdown(sbio);
         BIO_free_all(sbio);
     }
     if (return_value) {
@@ -941,14 +948,12 @@ myproxy_authenticate_init(myproxy_socket_attrs_t *attrs,
 			     "and try again.\n",
 			     peer_name, server_dn, peer_name);
        } else {
-	   verror_put_string("Server authorization failed.  Server identity\n"
-			     "(%s)\ndoes not match expected identities\n"
-			     "%s or %s.\n"
+	   verror_put_string("Server authorization failed.  Server identity "
+			     "does not match expected identity.\n"
 			     "If the server identity is acceptable, "
 			     "set\nMYPROXY_SERVER_DN=\"%s\"\n"
 			     "and try again.\n",
-			     peer_name, accepted_peer_names[0],
-			     accepted_peer_names[1], peer_name);
+			     peer_name);
        }
        goto error;
    } else if (rval == GSI_SOCKET_ERROR) {

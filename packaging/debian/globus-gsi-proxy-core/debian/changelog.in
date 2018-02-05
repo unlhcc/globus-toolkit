@@ -1,3 +1,45 @@
+globus-gsi-proxy-core (8.6-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix missing openssl compile/link flags
+
+ -- Globus Toolkit <support@globus.org>  Fri, 09 Sep 2016 09:28:07 -0400
+
+globus-gsi-proxy-core (8.5-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update for el.5 openssl101e
+
+ -- Globus Toolkit <support@globus.org>  Thu, 08 Sep 2016 15:26:28 -0400
+
+globus-gsi-proxy-core (8.4-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix test case
+
+ -- Globus Toolkit <support@globus.org>  Tue, 30 Aug 2016 10:57:29 -0400
+
+globus-gsi-proxy-core (8.3-1+gt6.@distro@) @distro@; urgency=low
+
+  * fix typo in previous
+
+ -- Globus Toolkit <support@globus.org>  Tue, 30 Aug 2016 10:12:33 -0400
+
+globus-gsi-proxy-core (8.2-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix path length constraint handling
+
+ -- Globus Toolkit <support@globus.org>  Tue, 30 Aug 2016 09:02:48 -0400
+
+globus-gsi-proxy-core (8.1-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix conditional for 1.0.1
+
+ -- Globus Toolkit <support@globus.org>  Thu, 18 Aug 2016 15:39:16 -0400
+
+globus-gsi-proxy-core (8.0-1+gt6.@distro@) @distro@; urgency=low
+
+  * Support for OpenSSL 1.1.0
+
+ -- Globus Toolkit <support@globus.org>  Tue, 16 Aug 2016 14:01:40 -0400
+
 globus-gsi-proxy-core (7.9-1+gt6.@distro@) @distro@; urgency=low
 
   * Fix missing ;

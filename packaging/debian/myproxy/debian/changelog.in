@@ -1,3 +1,63 @@
+myproxy (6.1.28-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix OpenSSL 1.1.0-related typo
+
+ -- Globus Toolkit <support@globus.org>  Fri, 05 May 2017 08:56:24 -0400
+
+myproxy (6.1.27-1+gt6.@distro@) @distro@; urgency=low
+
+  * Remove legacy SSLv3 support
+
+ -- Globus Toolkit <support@globus.org>  Fri, 21 Apr 2017 14:23:19 -0400
+
+myproxy (6.1.26-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix error check
+
+ -- Globus Toolkit <support@globus.org>  Thu, 23 Mar 2017 14:32:37 -0400
+
+myproxy (6.1.25-1+gt6.@distro@) @distro@; urgency=low
+
+  * Don't call ERR_GET_REASON twice #89
+
+ -- Globus Toolkit <support@globus.org>  Tue, 10 Jan 2017 08:30:53 -0500
+
+myproxy (6.1.24-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix crash in myproxy_bootstrap_trust() with OpenSSL 1.1.0c
+
+ -- Globus Toolkit <support@globus.org>  Mon, 09 Jan 2017 11:07:04 -0500
+
+myproxy (6.1.23-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fixes for OpenSSL 1.1.0
+
+ -- Globus Toolkit <support@globus.org>  Thu, 05 Jan 2017 17:21:12 -0500
+
+myproxy (6.1.22-1+gt6.@distro@) @distro@; urgency=low
+
+  * Check for openssl 101e for epel5
+
+ -- Globus Toolkit <support@globus.org>  Tue, 13 Dec 2016 07:33:07 -0500
+
+myproxy (6.1.21-2+gt6.@distro@) @distro@; urgency=low
+
+  * Do not overwrite configuration flags
+
+ -- Globus Toolkit <support@globus.org>  Mon, 19 Sep 2016 16:44:06 -0400
+
+myproxy (6.1.20-1+gt6.@distro@) @distro@; urgency=low
+
+  * Updates for el.5 with openssl101e
+
+ -- Globus Toolkit <support@globus.org>  Fri, 09 Sep 2016 14:56:37 -0400
+
+myproxy (6.1.19-1+gt6.@distro@) @distro@; urgency=low
+
+  * update myproxy debug/error msgs for accepted_peer_names type change
+
+ -- Globus Toolkit <support@globus.org>  Wed, 31 Aug 2016 11:16:14 -0400
+
 myproxy (6.1.18-1+gt6.@distro@) @distro@; urgency=low
 
   * Spelling
@@ -144,25 +204,25 @@ myproxy (6.0rc3-2+gt6.@distro@)) @distro@; urgency=low
 
   * Fix Source path
 
- -- Globus Toolkit <support@globus.org>  Thu, 21 August 2014 08:22:35 -0400
+ -- Globus Toolkit <support@globus.org>  Thu, 21 Aug 2014 08:22:35 -0400
 
 myproxy (6.0rc3-1+gt6.@distro@) @distro@; urgency=low
 
   * upgrade to 6.0rc3
 
- -- Globus Toolkit <support@globus.org>  Wed, 30 July 2014 14:06:08 -0400
+ -- Globus Toolkit <support@globus.org>  Wed, 30 Jul 2014 14:06:08 -0400
 
 myproxy (6.0rc2-1+gt6.@distro@) @distro@; urgency=low
 
   * upgrade to 6.0rc2
 
- -- Globus Toolkit <support@globus.org>  Wed, 30 July 2014 09:53:47 -0400
+ -- Globus Toolkit <support@globus.org>  Wed, 30 Jul 2014 09:53:47 -0400
 
 myproxy (6.0rc1-1+gt6.@distro@) @distro@; urgency=low
 
   * upgrade to 6.0rc1
 
- -- Globus Toolkit <support@globus.org>  Thu, 24 July 2014 12:49:15 -0400
+ -- Globus Toolkit <support@globus.org>  Thu, 24 Jul 2014 12:49:15 -0400
 
 myproxy (5.9-15+gt6.@distro@) @distro@; urgency=low
 
@@ -180,13 +240,13 @@ myproxy (5.9-13+gt6.@distro@) @distro@; urgency=low
 
   * Add default start and stop runlevels
 
- -- Globus Toolkit <support@globus.org>  Wed, 04 June 2014 09:51:19 -0400
+ -- Globus Toolkit <support@globus.org>  Wed, 04 Jun 2014 09:51:19 -0400
 
 myproxy (5.9-12+gt6.@distro@) @distro@; urgency=low
 
   * Add libglobus-usage-dev dependency
 
- -- Globus Toolkit <support@globus.org>  Tue, 29 April 2014 15:42:04 -0400
+ -- Globus Toolkit <support@globus.org>  Tue, 29 Apr 2014 15:42:04 -0400
 
 myproxy (5.9-11+gt6.@distro@) @distro@; urgency=low
 
@@ -204,13 +264,13 @@ myproxy (5.9-8) unstable; urgency=low
 
   * explicit "-lbsd -lpam -ldl -lssl -lcrypto"
 
- -- Globus Toolkit <support@globus.org>  Mon, 24 June 2013 12:13:46 -0400
+ -- Globus Toolkit <support@globus.org>  Mon, 24 Jun 2013 12:13:46 -0400
 
 myproxy (5.9-7) unstable; urgency=low
 
   * explicit -lssl
 
- -- Globus Toolkit <support@globus.org>  Mon, 24 June 2013 11:09:12 -0400
+ -- Globus Toolkit <support@globus.org>  Mon, 24 Jun 2013 11:09:12 -0400
 
 myproxy (5.9-6) unstable; urgency=low
 

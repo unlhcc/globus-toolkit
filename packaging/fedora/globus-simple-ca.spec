@@ -2,34 +2,53 @@
 
 Name:		globus-simple-ca
 %global _name %(tr - _ <<< %{name})
-Version:	4.22
-Release:	2%{?dist}
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global apache_license Apache-2.0
+%else
+%global apache_license ASL 2.0
+%endif
+Version:	4.24
+Release:	4%{?dist}
 Vendor:	Globus Support
 Summary:	Globus Toolkit - Simple CA
 
 Group:		System Environment/Libraries
-License:	ASL 2.0
+License:	%{apache_license}
 URL:		http://toolkit.globus.org/
 Source:	http://toolkit.globus.org/ftppub/gt6/packages/%{_name}-%{version}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-Requires:   globus-common
-Requires:   globus-common-progs
-Requires:   openssl
-Requires(post):   openssl
-Requires(post):   globus-gsi-cert-utils-progs
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+BuildRequires:  shadow
+Requires(pre):  shadow
+%endif
+Requires:       globus-common-progs
+Requires:  openssl
+Requires(post): openssl
+Requires(post): globus-gsi-cert-utils-progs
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 BuildRequires:  automake >= 1.11
 BuildRequires:  autoconf >= 2.60
 BuildRequires:  libtool >= 2.2
 %endif
 BuildRequires:  globus-common-progs >= 14
 BuildRequires:  globus-common-devel >= 14
-BuildRequires:  openssl
+BuildRequires:  globus-gsi-cert-utils-progs
 BuildRequires:  pkgconfig
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+BuildRequires:  openssl
+BuildRequires:  libopenssl-devel
+%else
+BuildRequires:  openssl
+BuildRequires:  openssl-devel
+%endif
+
 %if %{?fedora}%{!?fedora:0} >= 18 || %{?rhel}%{!?rhel:0} >= 6
 BuildRequires:  perl-Test-Simple
 %endif
 BuildArch:      noarch
+
 
 %description
 The Globus Toolkit is an open source software toolkit used for building Grid
@@ -50,6 +69,8 @@ rm -rf autom4te.cache
 
 autoreconf -if
 %endif
+
+%global openssl openssl
 
 %configure \
            --disable-static \
@@ -83,9 +104,11 @@ exit 0
 simplecadir=%{_localstatedir}/lib/globus/simple_ca
 mkdir -p ${simplecadir}
 if [ ! -f ${simplecadir}/cacert.pem ] ; then
+    tempdir=$(mktemp -d)
+    cd "$tempdir"
     grid-ca-create -noint -nobuild -dir "${simplecadir}"
     (umask 077; echo globus > ${simplecadir}/passwd)
-    simplecahash=`openssl x509 -hash -noout -in ${simplecadir}/cacert.pem`
+    simplecahash=`%openssl x509 -hash -noout -in ${simplecadir}/cacert.pem`
     cd $simplecadir
     grid-ca-package -cadir ${simplecadir}
     tar --strip 1 --no-same-owner -zx --exclude debian -C /etc/grid-security/certificates -f ${simplecadir}/globus_simple_ca_$simplecahash.tar.gz
@@ -105,6 +128,7 @@ if [ ! -f ${simplecadir}/cacert.pem ] ; then
         cp "${simplecadir}/hostcert.pem" /etc/grid-security/hostcert.pem 
     fi
     cd -
+    rm -rf "$tempdir"
 fi
 %files
 %defattr(-,root,root,-)
@@ -114,6 +138,18 @@ fi
 %{_mandir}/man1/*
 
 %changelog
+* Fri May 12 2017 Globus Toolkit <support@globus.org> - 4.24-4
+- Stop leaving files in /
+
+* Thu Sep 08 2016 Globus Toolkit <support@globus.org> - 4.24-3
+- Update for el.5 openssl101e, replace docbook with asciidoc
+
+* Fri Aug 26 2016 Globus Toolkit <support@globus.org> - 4.23-4
+- Updates for SLES 12
+
+* Tue Aug 16 2016 Globus Toolkit <support@globus.org> - 4.23-1
+- Updates for OpenSSL 1.1.0
+
 * Thu Aug 06 2015 Globus Toolkit <support@globus.org> - 4.22-2
 - Add vendor
 
@@ -205,7 +241,7 @@ fi
 - license is not a dir
 
 * Wed Jun 26 2013 Globus Toolkit <support@globus.org> - 3.4-2
-- GT-424: New Fedora Packaging Guideline - no %_isa in BuildRequires
+- GT-424: New Fedora Packaging Guideline - no %%_isa in BuildRequires
 
 * Fri May 24 2013 Globus Toolkit <support@globus.org> - 3.4-1
 - Fix test for absolute path on some versions of expr

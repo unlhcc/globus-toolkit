@@ -26,12 +26,18 @@ import Crypto.PublicKey.RSA
 import myproxy
 import pkgutil
 import os
+import sys
 from myproxyoauth import application
 from myproxyoauth.database import db_session, Admin, Client, Transaction
 from urllib import quote
 import duo_web
 import ConfigParser
 
+def bad_request(start_response):
+    status = "400 Bad Request"
+    headers = [ ("Content-Type", "text/plain") ]
+    start_response(status, headers, sys.exc_info())
+    return "Bad request\n"
 
 def get_template(name):
     template_data = None
@@ -94,6 +100,7 @@ https://docs.google.com/document/pub?id=10SC7oSURc-EgxMQjcCS50gz0u2HzDJAFiG5hEHi
 
 @application.wrap_app.route('/initiate', methods=['GET'])
 def initiate(environ, start_response):
+  try:
     request = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ)
     oauth_signature_method = request.getvalue('oauth_signature_method')
     if oauth_signature_method is None:
@@ -140,17 +147,17 @@ def initiate(environ, start_response):
 
                 return struct.unpack(fmt, data[offs:offs+unpack_len])
 
-	    def decode(n):
-		len = reduce(lambda x,y: long(x*256+y),
-			unpack_from("4B", n, 0))
-		return reduce(lambda x,y: long(x*256+y),
-			unpack_from(str(len)+"B", n, 4))
-	    keytuple = (decode(k.n), decode(k.e))
-        except Exception, e:
-            application.wrap_app.logger.error(str(sys.exc_info()))
-            raise(e)
+            def decode(n):
+                len = reduce(lambda x,y: long(x*256+y),
+                        unpack_from("4B", n, 0))
+                return reduce(lambda x,y: long(x*256+y),
+                        unpack_from(str(len)+"B", n, 4))
+            keytuple = (decode(k.n), decode(k.e))
+        except:
+            application.logger.error(str(sys.exc_info()))
+            raise
 
-	key = Crypto.PublicKey.RSA.construct(keytuple)
+        key = Crypto.PublicKey.RSA.construct(keytuple)
 
     method = environ['REQUEST_METHOD']
     url = url_reconstruct(environ)
@@ -160,13 +167,14 @@ def initiate(environ, start_response):
     o_server.add_signature_method(oauth.SignatureMethod_RSA_SHA1())
     try:
         o_server.verify_request(o_request, o_consumer, None)
-    except oauth.Error, e:
-        application.wrap_app.logger.error(str(e))
+    except:
+        e = sys.exc_info()
+        application.logger.error(str(e[1]))
         status = "403 Not authorized"
         headers = [
                 ("Content-Type", "text/plain") ]
-        start_response(status, headers, exc=e)
-        return str(e)
+        start_response(status, headers, e)
+        return str(e[1])
 
     certreq = str(request.getvalue('certreq'))
 
@@ -186,31 +194,35 @@ def initiate(environ, start_response):
 
     status = "200 Ok"
     headers = [
-	("Content-Type", "app/x-www-form-urlencoded") ]
+        ("Content-Type", "app/x-www-form-urlencoded") ]
     start_response(status, headers)
 
     return "oauth_token=%s&oauth_callback_confirmed=true" % oauth_temp_token
+  except:
+    return bad_request(start_response)
+
 
 @application.wrap_app.route('/authorize', methods=['GET'])
 def get_authorize(environ, start_response):
+  try:
     request = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ)
     oauth_temp_token = str(request.getvalue('oauth_token'))
     transactions = db_session.get_transaction(
             Transaction(temp_token=oauth_temp_token, temp_token_valid=1))
     if len(transactions) == 0:
-	status = "403 Not authorized"
-	headers = [ ("Content-Type", "text/plain") ]
-	start_response(status, headers)
-	return 'Invalid temporary token'
+        status = "403 Not authorized"
+        headers = [ ("Content-Type", "text/plain") ]
+        start_response(status, headers)
+        return 'Invalid temporary token'
 
     transaction = transactions[0]
 
     clients = db_session.get_client(Client(oauth_consumer_key=transaction.oauth_consumer_key))
     if len(clients) == 0:
-	status = "403 Not authorized"
-	headers = [ ("Content-Type", "text/plain") ]
-	start_response(status, headers)
-	return 'Unregistered client'
+        status = "403 Not authorized"
+        headers = [ ("Content-Type", "text/plain") ]
+        start_response(status, headers)
+        return 'Unregistered client'
     client = clients[0]
 
     transaction.temp_token_valid = 0
@@ -222,20 +234,23 @@ def get_authorize(environ, start_response):
     if os.path.exists(css_path):
         styles.append("static/site.css")
     res = render_template('authorize.html',
-	    client_name=client.name,
-	    client_url=client.home_url,
-	    temp_token=oauth_temp_token,
-	    retry_message="",
+            client_name=client.name,
+            client_url=client.home_url,
+            temp_token=oauth_temp_token,
+            retry_message="",
             stylesheets="\n".join(
                 [("<link rel='stylesheet' type='text/css' href='%s' >" % x) for x in styles]))
     status = "200 Ok"
     headers = [ ("Content-Type", "text/html")]
     start_response(status, headers)
     return res
+  except:
+    return bad_request(start_response)
 
 
 @application.wrap_app.route('/authorize', methods=['POST'])
 def post_authorize(environ, start_response):
+  try:
     request = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ)
     oauth_temp_token = str(request.getvalue('oauth_token'))
     username = str(request.getvalue('username'))
@@ -256,8 +271,9 @@ def post_authorize(environ, start_response):
         cert = myproxy.myproxy_logon(certreq,
                 transaction.certlifetime,
                 username, passphrase, client.myproxy_server)
-    except Exception, e:
-        application.wrap_app.logger.debug(str(e))
+    except:
+        e = sys.exc_info()
+        application.wrap_app.logger.error(str(e[1]))
         status = "200 Ok"
         headers = [ ("Content-Type", "text/html") ]
         styles = ['static/oauth.css']
@@ -269,7 +285,7 @@ def post_authorize(environ, start_response):
                     client_name=client.name,
                     client_url=client.home_url,
                     temp_token=oauth_temp_token,
-                    retry_message=str(e),
+                    retry_message=str(e[1]),
                     stylesheets="\n".join(
                         [("<link rel='stylesheet' type='text/css' href='%s' >" % x) for x in styles]))
         start_response(status, headers, e)
@@ -342,7 +358,8 @@ def post_authorize(environ, start_response):
         headers = [ ("Content-Type", "text/html")]
         start_response(status, headers)
         return res
-
+  except:
+    return bad_request(start_response)
 
 @application.wrap_app.route('/finalize', methods=['POST'])
 def finalize(environ, start_response):
@@ -425,6 +442,7 @@ def finalize(environ, start_response):
 
 @application.wrap_app.route('/token', methods=['GET'])
 def token(environ, start_response):
+  try:
     args = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ)
     oauth_signature_method = args.getvalue('oauth_signature_method')
     if oauth_signature_method is None:
@@ -455,9 +473,12 @@ def token(environ, start_response):
     headers = [('Content-Type', 'app/x-www-form-urlencoded')]
     resp = start_response(status, headers)
     return "oauth_token=%s" % str(oauth_access_token)
+  except:
+    return bad_request(start_response)
 
 @application.wrap_app.route('/getcert', methods=['GET'])
 def getcert(environ, start_response):
+  try:
     args = cgi.FieldStorage(fp=environ['wsgi.input'], environ=environ)
     oauth_signature_method = args.getvalue('oauth_signature_method')
     if oauth_signature_method is None:
@@ -492,4 +513,6 @@ def getcert(environ, start_response):
     start_response(status, headers)
 
     return 'username=%s\n%s' % (str(transaction.username), str(transaction.certificate))
+  except:
+    return bad_request(start_response)
 # vim: syntax=python: nospell:

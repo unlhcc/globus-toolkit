@@ -1,3 +1,45 @@
+globus-xio-udt-driver (1.29-1+gt6.@distro@) @distro@; urgency=low
+
+  * update gettext for win build
+
+ -- Globus Toolkit <support@globus.org>  Thu, 25 Jan 2018 09:30:06 -0600
+
+globus-xio-udt-driver (1.28-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix Glib build
+
+ -- Globus Toolkit <support@globus.org>  Mon, 26 Jun 2017 14:09:19 -0400
+
+globus-xio-udt-driver (1.27-1+gt6.@distro@) @distro@; urgency=low
+
+  * Don't force static build
+
+ -- Globus Toolkit <support@globus.org>  Tue, 25 Apr 2017 15:01:12 -0400
+
+globus-xio-udt-driver (1.26-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix build failure on mingw with gcc 5.4.0
+
+ -- Globus Toolkit <support@globus.org>  Wed, 21 Dec 2016 10:53:33 -0500
+
+globus-xio-udt-driver (1.25-2+gt6.@distro@) @distro@; urgency=low
+
+  * Fix multiarch _libdir
+
+ -- Globus Toolkit <support@globus.org>  Fri, 14 Oct 2016 11:42:26 -0400
+
+globus-xio-udt-driver (1.25-1+gt6.@distro@) @distro@; urgency=low
+
+  * pull udt tarball from globus repo
+
+ -- Globus Toolkit <support@globus.org>  Wed, 05 Oct 2016 14:06:16 -0500
+
+globus-xio-udt-driver (1.24-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update bug report URL
+
+ -- Globus Toolkit <support@globus.org>  Sat, 20 Aug 2016 09:11:44 -0400
+
 globus-xio-udt-driver (1.23-1+gt6.@distro@) @distro@; urgency=low
 
   * More feature tests for libnice

@@ -1,14 +1,19 @@
 %{!?perl_vendorlib: %global perl_vendorlib %(eval "`perl -V:installvendorlib`"; echo $installvendorlib)}
 
 Name:		globus-gram-job-manager-fork
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global apache_license Apache-2.0
+%else
+%global apache_license ASL 2.0
+%endif
 %global _name %(tr - _ <<< %{name})
-Version:	2.4
-Release:	2%{?dist}
+Version:	2.6
+Release:	1%{?dist}
 Vendor:	Globus Support
 Summary:	Globus Toolkit - Fork Job Manager
 
 Group:		Applications/Internet
-License:	ASL 2.0
+License:	%{apache_license}
 URL:		http://toolkit.globus.org/
 Source:	http://toolkit.globus.org/ftppub/gt6/packages/%{_name}-%{version}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -36,12 +41,18 @@ BuildRequires:	graphviz
 %if "%{?rhel}" == "5"
 BuildRequires:	graphviz-gd
 %endif
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 BuildRequires:  automake >= 1.11
 BuildRequires:  autoconf >= 2.60
 BuildRequires:  libtool >= 2.2
 %endif
 BuildRequires:  pkgconfig
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%package -n libglobus_seg_fork
+Summary:        Globus Toolkit - Fork Job Manager SEG Module
+Group:		Applications/Internet
+%endif
 
 %package setup-poll
 Summary:	Globus Toolkit - Fork Job Manager Setup Files
@@ -62,8 +73,13 @@ Provides:       %{name}-setup
 Requires:	%{name} = %{version}-%{release}
 Requires:       globus-scheduler-event-generator-progs >= 4
 Requires(post): globus-gram-job-manager-scripts >= 4
+Requires(post): globus-scheduler-event-generator-progs >= 4
 Requires(preun): globus-gram-job-manager-scripts >= 4
+Requires(preun): globus-scheduler-event-generator-progs >= 4
 Conflicts:      %{name}-setup-poll
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+Requires:	libglobus_seg_fork = %{version}-%{release}
+%endif
 
 %description
 The Globus Toolkit is an open source software toolkit used for building Grid
@@ -83,6 +99,17 @@ using the Globus Toolkit to unlock the potential of grids for their cause.
 The %{name} package contains:
 Fork Job Manager Setup using polling to monitor job state
 
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%description -n libglobus_seg_fork
+The Globus Toolkit is an open source software toolkit used for building Grid
+systems and applications. It is being developed by the Globus Alliance and
+many others all over the world. A growing number of projects and companies are
+using the Globus Toolkit to unlock the potential of grids for their cause.
+
+The libglobus_seg_lsf package contains:
+Fork Job Manager SEG Module
+%endif
+
 %description setup-seg
 The Globus Toolkit is an open source software toolkit used for building Grid
 systems and applications. It is being developed by the Globus Alliance and
@@ -96,7 +123,7 @@ Fork Job Manager Setup using SEG to monitor job state
 %setup -q -n %{_name}-%{version}
 
 %build
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 # Remove files that should be replaced during bootstrap
 rm -rf autom4te.cache
 
@@ -132,9 +159,9 @@ rm -rf $RPM_BUILD_ROOT
 
 %post setup-poll
 if [ $1 -eq 1 ]; then
-    globus-gatekeeper-admin -e jobmanager-fork-poll -n jobmanager-fork
+    globus-gatekeeper-admin -e jobmanager-fork-poll -n jobmanager-fork || :
     if [ ! -f /etc/grid-services/jobmanager ]; then
-        globus-gatekeeper-admin -e jobmanager-fork-poll -n jobmanager
+        globus-gatekeeper-admin -e jobmanager-fork-poll -n jobmanager || :
     fi
 fi
 
@@ -145,22 +172,32 @@ fi
 
 %postun setup-poll
 if [ $1 -eq 1 ]; then
-    globus-gatekeeper-admin -e jobmanager-fork-poll -n jobmanager-fork
+    globus-gatekeeper-admin -e jobmanager-fork-poll -n jobmanager-fork || :
     if [ ! -f /etc/grid-services/jobmanager ]; then
-        globus-gatekeeper-admin -e jobmanager-fork-poll -n jobmanager
+        globus-gatekeeper-admin -e jobmanager-fork-poll -n jobmanager || :
     fi
 elif [ $1 -eq 0 -a ! -f /etc/grid-services/jobmanager ]; then
     globus-gatekeeper-admin -E > /dev/null 2>&1 || :
 fi
 
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%post -n libglobus_seg_fork
+ldconfig
+
+%postun -n libglobus_seg_fork
+ldconfig
+%endif
+
 %post setup-seg
+%if %{?suse_version}%{!?suse_version:0} < 1315
 /sbin/ldconfig
+%endif
 if [ $1 -eq 1 ]; then
-    globus-gatekeeper-admin -e jobmanager-fork-seg -n jobmanager-fork
-    globus-scheduler-event-generator-admin -e fork
-    /sbin/service globus-scheduler-event-generator condrestart fork
+    globus-gatekeeper-admin -e jobmanager-fork-seg -n jobmanager-fork || :
+    globus-scheduler-event-generator-admin -e fork || :
+    /sbin/service globus-scheduler-event-generator condrestart fork || :
     if [ ! -f /etc/grid-services/jobmanager ]; then
-        globus-gatekeeper-admin -e jobmanager-fork-seg -n jobmanager
+        globus-gatekeeper-admin -e jobmanager-fork-seg -n jobmanager || :
     fi
     if [ ! -f /var/lib/globus/globus-fork.log ]; then
         mkdir -p /var/lib/globus
@@ -177,13 +214,15 @@ if [ $1 -eq 0 ]; then
 fi
 
 %postun setup-seg
+%if %{?suse_version}%{!?suse_version:0} < 1315
 /sbin/ldconfig
+%endif
 if [ $1 -eq 1 ]; then
     globus-gatekeeper-admin -e jobmanager-fork-seg > /dev/null 2>&1 || :
     globus-scheduler-event-generator-admin -e fork > /dev/null 2>&1 || :
     service globus-scheduler-event-generator condrestart fork > /dev/null 2>&1 || :
     if [ ! -f /etc/grid-services/jobmanager ]; then
-        globus-gatekeeper-admin -e jobmanager-fork-seg -n jobmanager
+        globus-gatekeeper-admin -e jobmanager-fork-seg -n jobmanager || :
     fi
 fi
 
@@ -191,10 +230,12 @@ fi
 %defattr(-,root,root,-)
 %dir %{_docdir}/%{name}-%{version}
 %{_docdir}/%{name}-%{version}/GLOBUS_LICENSE
+%dir %{_sysconfdir}/globus
 %config(noreplace) %{_sysconfdir}/globus/globus-fork.conf
-%{_sysconfdir}/globus/scheduler-event-generator/available/fork
+%dir %{perl_vendorlib}/Globus/GRAM/JobManager
 %{perl_vendorlib}/Globus/GRAM/JobManager/fork.pm
-
+%dir %{_sysconfdir}/grid-services
+%dir %{_sysconfdir}/grid-services/available
 
 %files setup-poll
 %defattr(-,root,root,-)
@@ -203,11 +244,29 @@ fi
 %files setup-seg
 %defattr(-,root,root,-)
 %config(noreplace) %{_sysconfdir}/grid-services/available/jobmanager-fork-seg
-%{_libdir}/libglobus_seg_fork.so*
 %{_sbindir}/globus-fork-starter
 %{_mandir}/man8/globus-fork-starter.8.gz
 
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%files -n libglobus_seg_fork
+%defattr(-,root,root,-)
+%endif
+%dir %{_sysconfdir}/globus/scheduler-event-generator
+%dir %{_sysconfdir}/globus/scheduler-event-generator/available
+%{_sysconfdir}/globus/scheduler-event-generator/available/fork
+%{_libdir}/libglobus_seg_fork.so*
+
+
 %changelog
+* Thu Sep 08 2016 Globus Toolkit <support@globus.org> - 2.6-1
+- Update for el.5 openssl101e, replace docbook with asciidoc
+
+* Tue Aug 30 2016 Globus Toolkit <support@globus.org> - 2.5-7
+- Updates for SLES 12
+
+* Sat Aug 20 2016 Globus Toolkit <support@globus.org> - 2.5-1
+- Update bug report URL
+
 * Thu Aug 06 2015 Globus Toolkit <support@globus.org> - 2.4-2
 - Add vendor
 
@@ -230,7 +289,7 @@ fi
 - Repackage for GT6 without GPT
 
 * Wed Jun 26 2013 Globus Toolkit <support@globus.org> - 1.5-9
-- GT-424: New Fedora Packaging Guideline - no %_isa in BuildRequires
+- GT-424: New Fedora Packaging Guideline - no %%_isa in BuildRequires
 
 * Fri Mar 08 2013 Globus Toolkit <support@globus.org> - 1.5-8
 - Fixes to dependencies
@@ -274,11 +333,11 @@ fi
 - Last sync prior to 5.2.0
 
 * Fri Oct 21 2011 Joseph Bester <bester@mcs.anl.gov> - 1.0-6
-- Apply OSG's globus-gram-job-manager-fork.spec patch to fix %post* scripts
+- Apply OSG's globus-gram-job-manager-fork.spec patch to fix %%post* scripts
 - Add explicit dependencies on >= 5.2 libraries
 
 * Thu Sep 22 2011 Joseph Bester <bester@mcs.anl.gov> - 1.0-5
-- Change %post check for -eq 1
+- Change %%post check for -eq 1
 
 * Wed Sep 14 2011 Joseph Bester <bester@mcs.anl.gov> - 1.0-3
 - Create globus-fork.log at postinstall time if it's not present

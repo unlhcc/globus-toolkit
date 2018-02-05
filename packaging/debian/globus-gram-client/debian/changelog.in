@@ -1,3 +1,39 @@
+globus-gram-client (13.19-1+gt6.@distro@) @distro@; urgency=low
+
+  * Add option to disable tests which require network
+
+ -- Globus Toolkit <support@globus.org>  Tue, 11 Jul 2017 03:46:25 -0400
+
+globus-gram-client (13.18-1+gt6.@distro@) @distro@; urgency=low
+
+  * Disable network-needing tests in pbuilder environment
+
+ -- Globus Toolkit <support@globus.org>  Fri, 23 Jun 2017 14:36:52 -0400
+
+globus-gram-client (13.17-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix tests makefile when openssl not present
+
+ -- Globus Toolkit <support@globus.org>  Thu, 22 Jun 2017 11:21:16 -0400
+
+globus-gram-client (13.16-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update for el.5 openssl101e
+
+ -- Globus Toolkit <support@globus.org>  Thu, 08 Sep 2016 15:46:31 -0400
+
+globus-gram-client (13.15-1+gt6.@distro@) @distro@; urgency=low
+
+  * Makefile fix
+
+ -- Globus Toolkit <support@globus.org>  Thu, 18 Aug 2016 16:08:27 -0400
+
+globus-gram-client (13.14-1+gt6.@distro@) @distro@; urgency=low
+
+  * Updates for OpenSSL 1.1.0
+
+ -- Globus Toolkit <support@globus.org>  Tue, 16 Aug 2016 15:39:37 -0400
+
 globus-gram-client (13.13-1+gt6.@distro@) @distro@; urgency=low
 
   * Use prelinks for tests so that they run on El Capitan

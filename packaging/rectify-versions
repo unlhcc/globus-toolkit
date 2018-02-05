@@ -81,6 +81,7 @@ sub update_rpm($$)
     my ($pkgname, $allpackagemeta) = @_;
     my $package = $allpackagemeta->{$pkgname};
     my $version = $package->{VERSION};
+    my $soname = $package->{SONAME};
     my $specfilename = "$topdir/fedora/$package->{NATIVE_NAME}.spec";
 
     if ($verbose) {print "Acting on $pkgname \n";}
@@ -183,6 +184,17 @@ sub update_rpm($$)
                 $specfile_changed = 1;
             }
         }
+        elsif ($specline =~ m/(\%global\s* soname)([0-9]+)/)
+        {
+            my $globalsoname=$1;
+            my $oldsoname=$2;
+
+            if ($oldsoname ne $soname)
+            {
+                print "Updating %global soname from $oldsoname to $soname\n" if ($verbose);
+                $ARRAY[$index] = "$globalsoname $soname";
+            }
+        }
     }
 
     my $changelogstring;
@@ -192,7 +204,7 @@ sub update_rpm($$)
         my %issues = ();
         my $pkgdatadir = $package->{PACKAGE_DIR};
 
-        foreach (split(/\n/, `git log --format=oneline origin/globus_6_branch..HEAD -- $pkgdatadir`)) {
+        foreach (split(/\n/, `git log --format=oneline ..HEAD -- $pkgdatadir`)) {
             $_ = (split(/ /, $_, 2))[1];
             $issues{$_} = 1;
         }
@@ -752,7 +764,7 @@ sub update_changelog
 GetOptions('package=s' => \$package,
            'verbose' => \$verbose,
            'dryrun|n' => \$dryrun,
-           'changelog=s' => \$changelog,
+           'changelog|m=s' => \$changelog,
            'prompt-for-changelog' => \$prompt_for_changelog,
            'git-changelog' => \$git_changelog,
            'bumprelease' => \$bumprelease,
@@ -788,7 +800,7 @@ foreach my $package_name (keys %packagelist)
 # Update debian and rpm package metadata for our desired packages
 foreach my $pkgname (keys %{$allpkgmeta})
 {
-    if ((!$package) || $pkgname eq $package) {
+    if (($package =~ /^all$/i) || $pkgname eq $package) {
         update_debian($pkgname, $allpkgmeta);
         update_rpm($pkgname, $allpkgmeta);
     }

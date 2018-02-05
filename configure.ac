@@ -1,5 +1,5 @@
 m4_define([globus_buildno], [m4_syscmd([
-if test -d .git ; then
+if test -e .git ; then
     git log -n 1 --pretty=format:%ct > globus-version.inc.new;
     if ! cmp globus-version.inc.new globus-version.inc > /dev/null 2>&1; then
         mv globus-version.inc.new globus-version.inc
@@ -9,7 +9,7 @@ if test -d .git ; then
 fi])dnl
 m4_[]include(globus-version.inc)])dnl
 m4_define([gtreleasebuild], [6.0.]globus_buildno)
-AC_INIT([globus_toolkit], gtreleasebuild, [https://globus.atlassian.net/])
+AC_INIT([globus_toolkit], gtreleasebuild, [https://github.com/globus/globus-toolkit/issues])
 
 m4_define([short_version], [m4_substr(AC_PACKAGE_VERSION, [0],
     m4_index(AC_PACKAGE_VERSION, [.]))])
@@ -238,7 +238,6 @@ GT_PACKAGE([globus_gass_copy],[gass/copy/source],
     [ globus_common  globus_ftp_client  globus_ftp_control
       globus_gsi_sysconfig  globus_gass_transfer  globus_io  globus_gssapi_gsi
       globus_gssapi_error ], [gridftp])
-dnl GT_PACKAGE([globus_xio_netlogger_driver], [xio/drivers/netlog])
 GT_PACKAGE([globus_gass_cache],[gass/cache/source],
     [ globus_common ], [gram5])
 GT_PACKAGE([globus_rsl],[gram/rsl/source], [globus_common], [gram5])
@@ -256,9 +255,6 @@ GT_PACKAGE([globus_gram_job_manager_sge],
           globus_gram_protocol ], [gram5-sge])
 GT_PACKAGE([globus_gram_job_manager_scripts],
         [gram/jobmanager/scripts], [], [gram5-server])
-dnl GT_PACKAGE([globus_authz_null_callout],
-dnl         [gsi/authz_null_callout/source],
-dnl         [globus_authz], [gsi])
 GT_PACKAGE([globus_gram_job_manager_slurm],
         [gram/jobmanager/lrms/slurm/source], [], [gram5-slurm])
 GT_PACKAGE([globus_gridmap_callout_error],
@@ -267,7 +263,6 @@ GT_PACKAGE([globus_gridmap_callout_error],
 GT_PACKAGE([globus_gridmap_callout], [gsi/gridmap_callout/source],
     [ globus_common globus_gssapi_gsi globus_gss_assist
       globus_gridmap_callout_error globus_gsi_credential ], [gsi])
-dnl GT_PACKAGE([globus_xio_skeleton_driver], [xio/drivers/skeleton/source])
 GT_PACKAGE([globus_gass_server_ez],[gass/server_ez/source],
     [ globus_common  globus_gass_transfer  globus_gssapi_gsi 
       globus_gss_assist ], [gram5])
@@ -288,8 +283,6 @@ GT_PACKAGE([globus_gridmap_eppn_callout], [gsi/gridmap_eppn_callout],
     [ globus_gsi_sysconfig globus_gssapi_gsi globus_gss_assist
       globus_gridmap_callout_error globus_gsi_credential ],
     [gsi])
-dnl no spec for this one: globus_usage_tools
-dnl GT_PACKAGE([globus_usage_tools], [usage/python/tools/source], [], [usage])
 GT_PACKAGE([globus_gram_job_manager_condor],
     [gram/jobmanager/lrms/condor/source], [], [gram5-condor])
 GT_PACKAGE([globus_proxy_utils],[gsi/proxy/proxy_utils/source],
@@ -351,21 +344,16 @@ if test -n "$PKG_CONFIG"; then
         PKG_CONFIG=""
     fi
 fi
-OPENSSL_VERSION=$($PKG_CONFIG --modversion openssl)
-AC_SUBST([OPENSSL_VERSION])
 
 if test x"$PKG_CONFIG" = x ; then
    AC_MSG_ERROR([Missing required pkg-config >= $pkg_config_min])
 fi
 
-pkg_config_version="$("${PKG_CONFIG}" --version)"
-pkg_config_major="${pkg_config_version%%.*}"
-pkg_config_minor="${pkg_config_version#*.}"
-gsi_openssh_can_recurse=no
-if  test "${pkg_config_major:-0}" -gt 0 || \
-    test "${pkg_config_minor:-0}" -ge 22; then
-    gsi_openssh_can_recurse=yes
-fi
+dnl This is used by the OSX package generation
+OPENSSL_VERSION=$($PKG_CONFIG --modversion openssl)
+AC_SUBST([OPENSSL_VERSION])
+
+gsi_openssh_can_recurse=yes
 
 dnl 
 if test "$HAVE_LTDL" = 1; then

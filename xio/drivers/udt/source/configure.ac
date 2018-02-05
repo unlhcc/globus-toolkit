@@ -1,6 +1,6 @@
 AC_PREREQ([2.60])
 
-AC_INIT([globus_xio_udt_driver],[1.23],[https://globus.atlassian.net/])
+AC_INIT([globus_xio_udt_driver],[1.29],[https://github.com/globus/globus-toolkit/issues])
 AC_SUBST([MAJOR_VERSION], [${PACKAGE_VERSION%%.*}])
 AC_SUBST([MINOR_VERSION], [${PACKAGE_VERSION##*.}])
 AC_SUBST([AGE_VERSION], [1])
@@ -42,11 +42,12 @@ esac
 AC_SUBST(UDT_CXXFLAGS)
 AC_SUBST(UDT_LIBADD)
 PKG_CHECK_MODULES([PACKAGE_DEP], $PACKAGE_DEPS)
-
+static_udt_option=""
 AC_ARG_WITH([static-udt],
     AS_HELP_STRING([--with-static-udt],[Build UDT library]),
     [if test "$withval" = yes; then
         use_included_udt=1
+        static_udt_option="--static"
      fi])
 
 AC_ARG_WITH([static-libnice],
@@ -93,7 +94,9 @@ AC_ARG_WITH([udt-lib],
 NICE_VERSION_AT_LEAST_0_1_2=0
 
 PKG_PROG_PKG_CONFIG
-PKG_CONFIG="${PKG_CONFIG} --static"
+if test use_included_udt = 1; then
+    PKG_CONFIG="${PKG_CONFIG} $static_udt_option"
+fi
 
 if test X"$use_included_udt" = "X"; then
     AC_CHECK_HEADER([udt.h], [AC_DEFINE([HAVE_UDT_H], [1], [Define to 1 if you have udt.h])])
@@ -120,14 +123,14 @@ if test X"$use_included_nice" = X1; then
     NICE_CFLAGS="\$\$(env PKG_CONFIG_PATH=\"\$(UDT_DRIVER_PKG_CONFIG_PATH)\" ${PKG_CONFIG} --define-variable=prefix=\"\$(abs_builddir)/libnice\$(prefix)\" --cflags nice)"
     NICE_LIBS="\$\$(env PKG_CONFIG_PATH=\"\$(UDT_DRIVER_PKG_CONFIG_PATH)\" ${PKG_CONFIG} --define-variable=prefix=\"\$(abs_builddir)/libnice\$(prefix)\" --libs nice)"
     NICE_VERSION_AT_LEAST_0_1_2=1
-
-    if test X"$use_included_glib2" = "X"; then
-        PKG_CHECK_MODULES([GLIB2], [glib-2.0 >= 2.20 gobject-2.0 >= 2.20 gthread-2.0 >= 2.20], [], [use_included_glib2=1])
-    fi
 fi
 
 if test $NICE_VERSION_AT_LEAST_0_1_2 = 1; then
     AC_DEFINE([NICE_VERSION_AT_LEAST_0_1_2], [1], [Define if libnice is at least 0.1.2])
+fi
+
+if test X"$use_included_glib2" = "X"; then
+    PKG_CHECK_MODULES([GLIB2], [glib-2.0 >= 2.20 gobject-2.0 >= 2.20 gthread-2.0 >= 2.20], [], [use_included_glib2=1])
 fi
 
 if test X"$use_included_glib2" = X1; then
@@ -142,11 +145,6 @@ if test X"$use_included_glib2" = X1; then
     if test X"$GETTEXT" = X""; then
         use_included_gettext=1
     fi
-    AC_DEFINE([HAVE_GIO_GIO_H], [1], [Define to 1 if you have gio/gio.h])
-else
-    PKG_CHECK_MODULES([GIO], [gio-2.0 >= 2.30],,[:])
-    CPPFLAGS="$CPPFLAGS $GIO_CFLAGS"
-    AC_CHECK_HEADER([gio/gio.h], [AC_DEFINE([HAVE_GIO_GIO_H], [1], [Define to 1 if you have gio/gio.h])])
 fi
 
 if test X"$use_included_libffi" = X1; then

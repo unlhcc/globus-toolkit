@@ -22,6 +22,8 @@
 # Easily extract information from a user's cert.
 #
 
+openssl="@OPENSSL@"
+
 prefix="${GLOBUS_LOCATION-@prefix@}"
 exec_prefix="@exec_prefix@"
 bindir="@bindir@"
@@ -114,7 +116,7 @@ certificate_format()
 }
 
 
-if ! openssl version > /dev/null 2> /dev/null; then
+if ! "$openssl" version > /dev/null 2> /dev/null; then
     echo "Unable to locate openssl binary in PATH" 1>&2
     exit 1
 fi
@@ -217,6 +219,7 @@ while [ "X$1" != "X" ]; do
 	toprint="$toprint -enddate"
 	;;
     -rfc2253|--rfc2253)
+        rfc2253=1
         openssl_options='-nameopt rfc2253'
         ;;
     *)
@@ -226,6 +229,9 @@ while [ "X$1" != "X" ]; do
     shift
 done
 
+if [ "${rfc2253:-0}" != 1 ]; then
+    openssl_options="$openssl_options -nameopt rfc2253,-dn_rev"
+fi
 cert_format=`certificate_format "$certfile"`
 if test "$cert_format" = ""; then
     echo "Error: Cannot locate certificate" 1>&2
@@ -243,10 +249,10 @@ fi
  
 if [ "$cert_format" = pkcs12 ]; then
     echo "Credentials are in pkcs12 format, OpenSSL will prompt for p12 password"
-    cert_data="`openssl pkcs12 -nokeys -clcerts -nomacver -in ${certfile}`"
-    command_stub="openssl x509 -noout $openssl_options"
+    cert_data="`"$openssl" pkcs12 -nokeys -clcerts -nomacver -in ${certfile}`"
+    command_stub="\"$openssl\" x509 -noout $openssl_options"
 else
-    command_stub="openssl x509 -noout -in ${certfile} $openssl_options"
+    command_stub="\"$openssl\" x509 -noout -in ${certfile} $openssl_options"
 fi
 
 
@@ -262,6 +268,9 @@ if test $? -ne 0 ; then
 fi
 
 subject=`echo ${subject} | sed 's%^subject=\ *%%'`
+if [ "${rfc2253:-0}" != 1 ]; then
+    subject=$(echo "${subject}" | sed -e 's|^|/|' -e 's|,|/|g')
+fi
 
 eval set -- "$toprint"
 for i in "$@"; do

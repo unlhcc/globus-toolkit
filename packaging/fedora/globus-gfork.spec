@@ -1,22 +1,25 @@
 Name:		globus-gfork
+%global soname 0
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global apache_license Apache-2.0
+%else
+%global apache_license ASL 2.0
+%endif
 %global _name %(tr - _ <<< %{name})
-Version:	4.8
-Release:	2%{?dist}
+Version:	4.9
+Release:	4%{?dist}
 Vendor:	Globus Support
 Summary:	Globus Toolkit - GFork
 
 Group:		System Environment/Libraries
-License:	ASL 2.0
+License:	%{apache_license}
 URL:		http://toolkit.globus.org/
 Source:	http://toolkit.globus.org/ftppub/gt6/packages/%{_name}-%{version}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
-Requires:	globus-common%{?_isa} >= 14
-Requires:	globus-xio%{?_isa} >= 3
-
 BuildRequires:	globus-common-devel >= 14
 BuildRequires:	globus-xio-devel >= 3
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 BuildRequires:	automake >= 1.11
 BuildRequires:	autoconf >= 2.60
 BuildRequires:	libtool >= 2.2
@@ -26,16 +29,41 @@ BuildRequires:  pkgconfig
 BuildRequires:  perl-Test-Simple
 %endif
 
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global mainpkg lib%{_name}%{soname}
+%global nmainpkg -n %{mainpkg}
+%else
+%global mainpkg %{name}
+%endif
+
+%if %{?nmainpkg:1}%{!?nmainpkg:0} != 0
+%package %{?nmainpkg}
+Summary:	Globus Toolkit - GFork
+Group:		System Environment/Libraries
+%endif
+
 %package progs
 Summary:	Globus Toolkit - GFork Programs
 Group:		Applications/Internet
-Requires:	%{name}%{?_isa} = %{version}-%{release}
+Requires:	%{mainpkg}%{?_isa} = %{version}-%{release}
 
 %package devel
 Summary:	Globus Toolkit - GFork Development Files
 Group:		Development/Libraries
-Requires:	%{name}%{?_isa} = %{version}-%{release}
+Requires:	%{mainpkg}%{?_isa} = %{version}-%{release}
 Requires:	globus-xio-devel%{?_isa} >= 3
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%description %{?nmainpkg}
+The Globus Toolkit is an open source software toolkit used for building Grid
+systems and applications. It is being developed by the Globus Alliance and
+many others all over the world. A growing number of projects and companies are
+using the Globus Toolkit to unlock the potential of grids for their cause.
+
+The %{mainpkg} package contains:
+Globus XIO Framework
+%endif
 
 %description
 The Globus Toolkit is an open source software toolkit used for building Grid
@@ -72,7 +100,7 @@ GFork Development Files
 
 %build
 
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 # Remove files that should be replaced during bootstrap
 rm -rf autom4te.cache
 
@@ -102,11 +130,11 @@ echo "# This is the default gfork configuration file" > \
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%post -p /sbin/ldconfig
+%post %{?nmainpkg} -p /sbin/ldconfig
 
-%postun -p /sbin/ldconfig
+%postun %{?nmainpkg} -p /sbin/ldconfig
 
-%files
+%files %{?nmainpkg}
 %defattr(-,root,root,-)
 %dir %{_docdir}/%{name}-%{version}
 %{_docdir}/%{name}-%{version}/GLOBUS_LICENSE
@@ -125,6 +153,15 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/pkgconfig/globus-gfork.pc
 
 %changelog
+* Thu Sep 08 2016 Globus Toolkit <support@globus.org> - 4.9-4
+- Rebuild after changes for el.5 with openssl101e
+
+* Thu Aug 25 2016 Globus Toolkit <support@globus.org> - 4.9-3
+- SLES 12 packaging conditionals
+
+* Sat Aug 20 2016 Globus Toolkit <support@globus.org> - 4.9-1
+- Update bug report URL
+
 * Thu Aug 06 2015 Globus Toolkit <support@globus.org> - 4.8-2
 - Add vendor
 
@@ -160,7 +197,7 @@ rm -rf $RPM_BUILD_ROOT
 - Repackage for GT6 without GPT
 
 * Wed Jun 26 2013 Globus Toolkit <support@globus.org> - 3.2-7
-- GT-424: New Fedora Packaging Guideline - no %_isa in BuildRequires
+- GT-424: New Fedora Packaging Guideline - no %%_isa in BuildRequires
 
 * Tue Mar 05 2013 Globus Toolkit <support@globus.org> - 3.2-6
 - Add missing build dependency

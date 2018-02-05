@@ -1,3 +1,16 @@
+globus-xio-gsi-driver (4.1-1+gt6.@distro@) @distro@; urgency=low
+
+  * Add SNI and ALPN support via cntls
+  * Ignore error setting ALPN option
+
+ -- Globus Toolkit <support@globus.org>  Wed, 06 Sep 2017 16:14:57 -0400
+
+globus-xio-gsi-driver (3.11-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix crash when checking for anonymous GSS name when name comparison fails
+
+ -- Globus Toolkit <support@globus.org>  Fri, 14 Apr 2017 09:47:00 -0400
+
 globus-xio-gsi-driver (3.10-1+gt6.@distro@) @distro@; urgency=low
 
   * Fix anonymous auth in strict mode

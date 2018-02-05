@@ -1,29 +1,34 @@
 Name:		globus-gsi-proxy-core
+%global soname 0
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global apache_license Apache-2.0
+%else
+%global apache_license ASL 2.0
+%endif
 %global _name %(tr - _ <<< %{name})
-Version:	7.9
+Version:	8.6
 Release:	1%{?dist}
 Vendor:	Globus Support
 Summary:	Globus Toolkit - Globus GSI Proxy Core Library
 
 Group:		System Environment/Libraries
-License:	ASL 2.0
+License:	%{apache_license}
 URL:		http://toolkit.globus.org/
 Source:	http://toolkit.globus.org/ftppub/gt6/packages/%{_name}-%{version}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
-Requires:	globus-gsi-proxy-ssl%{?_isa} >= 4
-Requires:	globus-gsi-credential%{?_isa} >= 5
-Requires:	globus-openssl-module%{?_isa} >= 3
-Requires:	globus-gsi-openssl-error%{?_isa} >= 2
-Requires:	globus-gsi-cert-utils%{?_isa} >= 8
-Requires:	globus-common%{?_isa} >= 14
-Requires:	globus-gsi-sysconfig%{?_isa} >= 5
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
-Requires:	openssl
-Requires:	openssl-libs%{?_isa}
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+BuildRequires:  openssl
+BuildRequires:  libopenssl-devel
+%else
+%if %{?rhel}%{!?rhel:0} == 5
+BuildRequires:  openssl101e
+BuildRequires:  openssl101e-devel
+BuildConflicts: openssl-devel
+%else
+BuildRequires:  openssl
+BuildRequires:  openssl-devel
 %endif
-%if %{?fedora}%{!?fedora:0} < 19 && %{?rhel}%{!?rhel:0} < 7
-Requires:	openssl%{?_isa}
 %endif
 
 BuildRequires:	globus-gsi-proxy-ssl-devel >= 4
@@ -38,17 +43,30 @@ BuildRequires:	graphviz
 %if "%{?rhel}" == "5"
 BuildRequires:	graphviz-gd
 %endif
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 BuildRequires:	automake >= 1.11
 BuildRequires:	autoconf >= 2.60
 BuildRequires:	libtool >= 2.2
 %endif
 BuildRequires:  pkgconfig
 
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global mainpkg lib%{_name}%{soname}
+%global nmainpkg -n %{mainpkg}
+%else
+%global mainpkg %{name}
+%endif
+
+%if %{?nmainpkg:1}%{!?nmainpkg:0} != 0
+%package %{?nmainpkg}
+Summary:	Globus Toolkit - Globus GSI Proxy Core Library
+Group:		System Environment/Libraries
+%endif
+
 %package devel
 Summary:	Globus Toolkit - Globus GSI Proxy Core Library Development Files
 Group:		Development/Libraries
-Requires:	%{name}%{?_isa} = %{version}-%{release}
+Requires:	%{mainpkg}%{?_isa} = %{version}-%{release}
 Requires:	globus-gsi-proxy-ssl-devel%{?_isa} >= 4
 Requires:	globus-gsi-credential-devel%{?_isa} >= 5
 Requires:	globus-openssl-module-devel%{?_isa} >= 3
@@ -56,6 +74,18 @@ Requires:	globus-gsi-openssl-error-devel%{?_isa} >= 2
 Requires:	globus-gsi-cert-utils-devel%{?_isa} >= 8
 Requires:	globus-common-devel%{?_isa} >= 14
 Requires:	globus-gsi-sysconfig-devel%{?_isa} >= 5
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+Requires:  openssl
+Requires:  libopenssl-devel
+%else
+%if %{?rhel}%{!?rhel:0} == 5
+Requires:  openssl101e
+Requires:  openssl101e-devel
+%else
+Requires:  openssl
+Requires:  openssl-devel
+%endif
+%endif
 
 %package doc
 Summary:	Globus Toolkit - Globus GSI Proxy Core Library Documentation Files
@@ -63,7 +93,18 @@ Group:		Documentation
 %if %{?fedora}%{!?fedora:0} >= 10 || %{?rhel}%{!?rhel:0} >= 6
 BuildArch:	noarch
 %endif
-Requires:	%{name} = %{version}-%{release}
+Requires:	%{mainpkg} = %{version}-%{release}
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%description %{?nmainpkg}
+The Globus Toolkit is an open source software toolkit used for building Grid
+systems and applications. It is being developed by the Globus Alliance and
+many others all over the world. A growing number of projects and companies are
+using the Globus Toolkit to unlock the potential of grids for their cause.
+
+The %{mainpkg} package contains:
+Globus GSI Proxy Core Library
+%endif
 
 %description
 The Globus Toolkit is an open source software toolkit used for building Grid
@@ -96,18 +137,22 @@ Globus GSI Proxy Core Library Documentation Files
 %setup -q -n %{_name}-%{version}
 
 %build
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 # Remove files that should be replaced during bootstrap
 rm -rf autom4te.cache
 
 autoreconf -if
 %endif
 
+%if %{?rhel}%{!?rhel:0} == 5
+export OPENSSL="$(which openssl101e)"
+%endif
 
 %configure \
            --disable-static \
            --docdir=%{_docdir}/%{name}-%{version} \
            --includedir=%{_includedir}/globus \
+           --with-symbol-versions \
            --libexecdir=%{_datadir}/globus
 
 make %{?_smp_mflags}
@@ -119,14 +164,17 @@ make install DESTDIR=$RPM_BUILD_ROOT
 # Remove libtool archives (.la files)
 find $RPM_BUILD_ROOT%{_libdir} -name 'lib*.la' -exec rm -v '{}' \;
 
+%check
+make %{?_smp_mflags} check
+
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%post -p /sbin/ldconfig
+%post %{?nmainpkg} -p /sbin/ldconfig
 
-%postun -p /sbin/ldconfig
+%postun %{?nmainpkg} -p /sbin/ldconfig
 
-%files
+%files %{?nmainpkg}
 %defattr(-,root,root,-)
 %dir %{_docdir}/%{name}-%{version}
 %doc %{_docdir}/%{name}-%{version}/GLOBUS_LICENSE
@@ -145,6 +193,31 @@ rm -rf $RPM_BUILD_ROOT
 %{_mandir}/man3/*
 
 %changelog
+* Fri Sep 09 2016 Globus Toolkit <support@globus.org> - 8.6-1
+- Fix missing openssl compile/link flags
+
+* Thu Sep 08 2016 Globus Toolkit <support@globus.org> - 8.5-1
+- Update for el.5 openssl101e
+
+* Tue Aug 30 2016 Globus Toolkit <support@globus.org> - 8.4-1
+- Enable tests
+- Fix test case
+
+* Tue Aug 30 2016 Globus Toolkit <support@globus.org> - 8.3-1
+- fix typo in previous
+
+* Tue Aug 30 2016 Globus Toolkit <support@globus.org> - 8.2-1
+- Fix path length constraint handling
+
+* Thu Aug 25 2016 Globus Toolkit <support@globus.org> - 8.1-2
+- Updates for SLES 12
+
+* Thu Aug 18 2016 Globus Toolkit <support@globus.org> - 8.1-1
+- Fix conditional for 1.0.1
+
+* Tue Aug 16 2016 Globus Toolkit <support@globus.org> - 8.0-1
+- Support for OpenSSL 1.1.0
+
 * Fri Dec 04 2015 Globus Toolkit <support@globus.org> - 7.9-1
 - Fix missing ;
 
@@ -188,7 +261,7 @@ rm -rf $RPM_BUILD_ROOT
 - openssl-libs for newer fedora
 
 * Wed Jun 26 2013 Globus Toolkit <support@globus.org> - 6.2-8
-- GT-424: New Fedora Packaging Guideline - no %_isa in BuildRequires
+- GT-424: New Fedora Packaging Guideline - no %%_isa in BuildRequires
 
 * Wed Feb 20 2013 Globus Toolkit <support@globus.org> - 6.2-7
 - Workaround missing F18 doxygen/latex dependency

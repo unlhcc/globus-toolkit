@@ -139,9 +139,11 @@ globus_gsi_gssapi_test_authenticate(
 }
 
 int
-test_establish_contexts(
+test_establish_contexts_with_mechs(
     gss_ctx_id_t                       *init_context,
     gss_ctx_id_t                       *accept_context,
+    const gss_OID                       init_mec_type,
+    OM_uint32                           flags,
     OM_uint32                          *major_status,
     OM_uint32                          *minor_status)
     
@@ -172,8 +174,8 @@ test_establish_contexts(
                 GSS_C_NO_CREDENTIAL,
                 init_context,
                 GSS_C_NO_NAME,
-                GSS_C_NO_OID,
-                0,
+                init_mec_type,
+                flags,
                 0,
                 GSS_C_NO_CHANNEL_BINDINGS,
                 &accept_token,
@@ -254,28 +256,40 @@ accept_fail:
 }
 
 
+int
+test_establish_contexts(
+    gss_ctx_id_t                       *init_context,
+    gss_ctx_id_t                       *accept_context,
+    OM_uint32                           flags,
+    OM_uint32                          *major_status,
+    OM_uint32                          *minor_status)
+    
+{
+    return test_establish_contexts_with_mechs(
+            init_context,
+            accept_context,
+            GSS_C_NO_OID,
+            flags,
+            major_status,
+            minor_status);
+}
+
+
 void 
 globus_gsi_gssapi_test_cleanup(
     gss_ctx_id_t *                      context_handle,
     char *                              userid,
     gss_cred_id_t *                     delegated_cred)
 {
-    OM_uint32                           major_status;
     OM_uint32                           minor_status;
     
-    if (userid != NULL)
-    { 
-        free(userid);
-    }
+    free(userid);
     
-    major_status = gss_delete_sec_context(&minor_status,
-                                          context_handle,
-                                          GSS_C_NO_BUFFER);
+    gss_delete_sec_context(&minor_status, context_handle, GSS_C_NO_BUFFER);
     
     if (delegated_cred != NULL)
     {
-        major_status = gss_release_cred(&minor_status,
-                                        delegated_cred);
+        gss_release_cred(&minor_status, delegated_cred);
     }
 }
 
@@ -698,7 +712,6 @@ accept_sec_context(
     gss_buffer_desc                     name_buffer;
     gss_OID                             mech_type = GSS_C_NO_OID;
     OM_uint32                           time_ret;
-    char *                              error_str;
     
     if(credential == GSS_C_NO_CREDENTIAL)
     {
@@ -818,7 +831,6 @@ init_sec_context(
     OM_uint32			        time_ret;
     gss_buffer_desc		        input_token = GSS_C_EMPTY_BUFFER;
     gss_buffer_desc 		        output_token = GSS_C_EMPTY_BUFFER;
-    char *                              error_str;
 
     major_status = gss_inquire_cred(&minor_status,
 				    credential,
@@ -930,7 +942,6 @@ globus_gsi_gssapi_test_print_error(
     OM_uint32                           major_status,
     OM_uint32                           minor_status)
 {
-    char *                              error_str;
     OM_uint32                           message_context = 0;
     OM_uint32                           minor_status2;
     gss_buffer_desc                     status_string;
@@ -952,7 +963,7 @@ globus_gsi_gssapi_test_print_error(
             gss_release_buffer(&minor_status2, &status_string);
         }
         if (gss_display_status(&minor_status2,
-                               major_status,
+                               minor_status,
                                GSS_C_MECH_CODE,
                                GSS_C_NO_OID,
                                &message_context,

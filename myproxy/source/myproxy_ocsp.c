@@ -89,7 +89,7 @@ myproxy_ocsp_set_responder_cert(const char *path) {
 	sk_X509_pop_free(responder_cert, X509_free);
     responder_cert = NULL;
 
-    in = BIO_new(BIO_s_file_internal());
+    in = BIO_new(BIO_s_file());
     if (in == NULL || BIO_read_filename(in, path) <= 0) {
         verror_put_string("error reading %s", path);
         goto exit;
@@ -178,9 +178,9 @@ verify_cert_hostname(X509 *cert, char *hostname) {
       extstr = OBJ_nid2sn(OBJ_obj2nid(X509_EXTENSION_get_object(ext)));
       if (!strcasecmp(extstr, "subjectAltName")) {
         if (!(meth = (X509V3_EXT_METHOD *)X509V3_EXT_get(ext))) break;
-        data = ext->value->data;
+        data = X509_EXTENSION_get_data(ext)->data;
 
-        val = meth->i2v(meth, meth->d2i(0, &data, ext->value->length), 0);
+        val = meth->i2v(meth, meth->d2i(0, &data, X509_EXTENSION_get_data(ext)->length), 0);
         for (j = 0;  j < sk_CONF_VALUE_num(val);  j++) {
           nval = sk_CONF_VALUE_value(val, j);
           if (!strcasecmp(nval->name, "DNS") && !strcasecmp(nval->value, hostname)) {
@@ -207,7 +207,9 @@ my_connect_ssl(char *host, int port, SSL_CTX **ctx) {
 
   if (!(conn = BIO_new_ssl_connect(*ctx))) goto error_exit;
   BIO_set_conn_hostname(conn, host);
-  BIO_set_conn_int_port(conn, &port);
+  char chport[6];
+  snprintf(chport, sizeof(chport), "%d", port);
+  BIO_set_conn_port(conn, chport);
 
   if (BIO_do_connect(conn) <= 0) goto error_exit;
   return conn;
@@ -232,7 +234,9 @@ my_connect(char *host, int port, int ssl, SSL_CTX **ctx) {
   }
 
   if (!(conn = BIO_new_connect(host))) goto error_exit;
-  BIO_set_conn_int_port(conn, &port);
+  char chport[6];
+  snprintf(chport, sizeof(chport), "%d", port);
+  BIO_set_conn_port(conn, chport);
   if (BIO_do_connect(conn) <= 0) goto error_exit;
   return conn;
 
@@ -312,12 +316,20 @@ int myproxy_ocsp_verify(X509 *cert, X509 *issuer) {
     goto end;
   }
   X509_LOOKUP_add_dir(lookup, certdir, X509_FILETYPE_PEM);
+  #if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+  ctx = SSL_CTX_new(TLS_client_method());
+  #else
   ctx = SSL_CTX_new(SSLv23_client_method());
+  #endif
   if (ctx == NULL) {
     result = MYPROXY_OCSPRESULT_ERROR_OUTOFMEMORY;
     goto end;
   }
-  SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
+  #if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+  SSL_CTX_set_min_proto_version(ctx, TLS1_VERSION);
+  #else
+  SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
+  #endif
   SSL_CTX_set_cert_store(ctx, store);
   SSL_CTX_set_verify(ctx,SSL_VERIFY_PEER,NULL);
 

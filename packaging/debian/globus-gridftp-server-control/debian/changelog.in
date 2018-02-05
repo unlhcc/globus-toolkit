@@ -1,3 +1,39 @@
+globus-gridftp-server-control (6.1-1+gt6.@distro@) @distro@; urgency=low
+
+  * Don't error if acquire_cred fails when vhost env is set
+
+ -- Globus Toolkit <support@globus.org>  Wed, 01 Nov 2017 20:29:37 +0000
+
+globus-gridftp-server-control (6.0-1+gt6.@distro@) @distro@; urgency=low
+
+  * Add support for control channel over TLS
+
+ -- Globus Toolkit <support@globus.org>  Wed, 06 Sep 2017 11:26:48 -0400
+
+globus-gridftp-server-control (5.2-1+gt6.@distro@) @distro@; urgency=low
+
+  * allow 400 responses to stat failures
+
+ -- Globus Toolkit <support@globus.org>  Mon, 07 Aug 2017 15:03:46 -0500
+
+globus-gridftp-server-control (5.1-1+gt6.@distro@) @distro@; urgency=low
+
+  * fix mem error on empty mlsc responses
+
+ -- Globus Toolkit <support@globus.org>  Thu, 13 Jul 2017 11:27:52 -0500
+
+globus-gridftp-server-control (5.0-1+gt6.@distro@) @distro@; urgency=low
+
+  * extend response_type to allow for ftp error codes
+
+ -- Globus Toolkit <support@globus.org>  Fri, 03 Mar 2017 10:12:49 -0600
+
+globus-gridftp-server-control (4.2-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update bug report URL
+
+ -- Globus Toolkit <support@globus.org>  Sat, 20 Aug 2016 09:11:36 -0400
+
 globus-gridftp-server-control (4.1-1+gt6.@distro@) @distro@; urgency=low
 
   * Spelling

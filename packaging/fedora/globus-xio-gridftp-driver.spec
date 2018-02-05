@@ -1,18 +1,22 @@
 Name:		globus-xio-gridftp-driver
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global apache_license Apache-2.0
+%else
+%global apache_license ASL 2.0
+%endif
 %global _name %(tr - _ <<< %{name})
-Version:	2.13
-Release:	1%{?dist}
+Version:	2.17
+Release:	2%{?dist}
 Vendor:	Globus Support
 Summary:	Globus Toolkit - Globus XIO GridFTP Driver
 
 Group:		System Environment/Libraries
-License:	ASL 2.0
+License:	%{apache_license}
 URL:		http://toolkit.globus.org/
 Source:	http://toolkit.globus.org/ftppub/gt6/packages/%{_name}-%{version}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 Requires:	globus-xio-gsi-driver%{?_isa} >= 2
-Requires:	globus-ftp-client%{?_isa} >= 7
 
 BuildRequires:	globus-xio-devel >= 3
 BuildRequires:	globus-ftp-client-devel >= 7
@@ -26,7 +30,7 @@ BuildRequires:	graphviz
 %if "%{?rhel}" == "5"
 BuildRequires:	graphviz-gd
 %endif
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 BuildRequires:  automake >= 1.11
 BuildRequires:  autoconf >= 2.60
 BuildRequires:  libtool >= 2.2
@@ -40,12 +44,30 @@ BuildRequires: libtool
 %else
 BuildRequires: libtool-ltdl-devel
 %endif
+
+%if %{?rhel}%{!?rhel:0} == 5
+BuildRequires: openssl101e
+%else
 BuildRequires: openssl
+%endif
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global mainpkg lib%{_name}
+%global nmainpkg -n %{mainpkg}
+%else
+%global mainpkg %{name}
+%endif
+
+%if %{?nmainpkg:1}%{!?nmainpkg:0} != 0
+%package %{?nmainpkg}
+Summary:	Globus Toolkit - Globus XIO GSI Driver
+Group:		System Environment/Libraries
+%endif
 
 %package devel
 Summary:	Globus Toolkit - Globus XIO GSI Driver Development Files
 Group:		Development/Libraries
-Requires:	%{name}%{?_isa} = %{version}-%{release}
+Requires:	%{mainpkg}%{?_isa} = %{version}-%{release}
 Requires:	globus-ftp-client-devel%{?_isa} >= 7
 Requires:	globus-xio-devel%{?_isa} >= 3
 Requires:	globus-xio-gsi-driver-devel%{?_isa} >= 2
@@ -56,7 +78,18 @@ Group:		Documentation
 %if %{?fedora}%{!?fedora:0} >= 10 || %{?rhel}%{!?rhel:0} >= 6
 BuildArch:	noarch
 %endif
-Requires:	%{name} = %{version}-%{release}
+Requires:	%{mainpkg} = %{version}-%{release}
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%description %{?nmainpkg}
+The Globus Toolkit is an open source software toolkit used for building Grid
+systems and applications. It is being developed by the Globus Alliance and
+many others all over the world. A growing number of projects and companies are
+using the Globus Toolkit to unlock the potential of grids for their cause.
+
+The %{mainpkg} package contains:
+Globus XIO GridFTP Driver
+%endif
 
 %description
 The Globus Toolkit is an open source software toolkit used for building Grid
@@ -89,13 +122,16 @@ Globus XIO GridFTP Driver Documentation Files
 %setup -q -n %{_name}-%{version}
 
 %build
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 # Remove files that should be replaced during bootstrap
 rm -rf autom4te.cache
 
 autoreconf -if
 %endif
 
+%if %{?rhel}%{!?rhel:0} == 5
+export OPENSSL="$(which openssl101e)"
+%endif
 
 %configure \
            --disable-static \
@@ -117,11 +153,11 @@ make %{?_smp_mflags} check
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%post -p /sbin/ldconfig
+%post %{?nmainpkg} -p /sbin/ldconfig
 
-%postun -p /sbin/ldconfig
+%postun %{?nmainpkg} -p /sbin/ldconfig
 
-%files
+%files %{?nmainpkg}
 %defattr(-,root,root,-)
 %dir %{_docdir}/%{name}-%{version}
 %doc %{_docdir}/%{name}-%{version}/GLOBUS_LICENSE
@@ -139,6 +175,21 @@ rm -rf $RPM_BUILD_ROOT
 %{_mandir}/man3/*
 
 %changelog
+* Thu Sep 08 2016 Globus Toolkit <support@globus.org> - 2.17-2
+- Update for el.5 openssl101e, replace docbook with asciidoc
+
+* Mon Aug 29 2016 Globus Toolkit <support@globus.org> - 2.16-2
+- Updates for SLES 12
+
+* Fri Aug 19 2016 Globus Toolkit <support@globus.org> - 2.16-1
+- don't use no-fork with root-run tests
+
+* Thu Aug 18 2016 Globus Toolkit <support@globus.org> - 2.15-1
+- Makefile fix
+
+* Tue Aug 16 2016 Globus Toolkit <support@globus.org> - 2.14-1
+- Updates for OpenSSL 1.1.0
+
 * Tue Apr 19 2016 Globus Toolkit <support@globus.org> - 2.13-1
 - Add dlpreopen force
 

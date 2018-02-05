@@ -1,3 +1,27 @@
+globus-proxy-utils (6.19-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix RSA key checking
+
+ -- Globus Toolkit <support@globus.org>  Fri, 06 Jan 2017 09:32:37 -0500
+
+globus-proxy-utils (6.18-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update for el.5 openssl101e, replace docbook with asciidoc
+
+ -- Globus Toolkit <support@globus.org>  Thu, 08 Sep 2016 14:08:56 -0400
+
+globus-proxy-utils (6.17-1+gt6.@distro@) @distro@; urgency=low
+
+  * Makefile fixes
+
+ -- Globus Toolkit <support@globus.org>  Thu, 18 Aug 2016 21:16:12 -0400
+
+globus-proxy-utils (6.16-1+gt6.@distro@) @distro@; urgency=low
+
+  * Updates for OpenSSL 1.1.0
+
+ -- Globus Toolkit <support@globus.org>  Tue, 16 Aug 2016 14:07:26 -0400
+
 globus-proxy-utils (6.15-1+gt6.@distro@) @distro@; urgency=low
 
   * Updates for reverse lookups for backward compatibility checking

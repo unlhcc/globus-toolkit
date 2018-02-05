@@ -1,3 +1,34 @@
+globus-gsi-callback (5.13-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix crash with OpenSSL 1.1.0 with a CRL (issue #87), replace some deprecated API calls
+
+ -- Globus Toolkit <support@globus.org>  Fri, 06 Jan 2017 13:32:19 -0500
+
+globus-gsi-callback (5.12-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix crash with empty X.509 subject name
+  * Ensure that X509_OBJECT_new compatibility macro initializes the object
+
+ -- Globus Toolkit <support@globus.org>  Wed, 26 Oct 2016 09:45:15 -0400
+
+globus-gsi-callback (5.11-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update for el.5 openssl101e
+
+ -- Globus Toolkit <support@globus.org>  Thu, 08 Sep 2016 13:21:14 -0400
+
+globus-gsi-callback (5.10-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix path length constraint handling
+
+ -- Globus Toolkit <support@globus.org>  Tue, 30 Aug 2016 08:59:30 -0400
+
+globus-gsi-callback (5.9-1+gt6.@distro@) @distro@; urgency=low
+
+  * Updates for OpenSSL 1.1.0
+
+ -- Globus Toolkit <support@globus.org>  Tue, 16 Aug 2016 14:25:49 -0400
+
 globus-gsi-callback (5.8-1+gt6.@distro@) @distro@; urgency=low
 
   * GT-608: Remove dead code from gsi callback

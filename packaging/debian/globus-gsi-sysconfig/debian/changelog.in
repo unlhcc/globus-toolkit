@@ -1,3 +1,39 @@
+globus-gsi-sysconfig (8.1-1+gt6.@distro@) @distro@; urgency=low
+
+  * fix typo in windows function name
+
+ -- Globus Toolkit <support@globus.org>  Wed, 24 Jan 2018 21:24:59 -0600
+
+globus-gsi-sysconfig (8.0-1+gt6.@distro@) @distro@; urgency=low
+
+  * Add cert and key checks based on different uid
+
+ -- Globus Toolkit <support@globus.org>  Wed, 01 Nov 2017 13:49:52 +0000
+
+globus-gsi-sysconfig (7.1-1+gt6.@distro@) @distro@; urgency=low
+
+  * Enable c99 compiler syntax
+
+ -- Globus Toolkit <support@globus.org>  Wed, 06 Sep 2017 13:38:40 -0400
+
+globus-gsi-sysconfig (7.0-1+gt6.@distro@) @distro@; urgency=low
+
+  * Add SNI vhost cred dir support
+
+ -- Globus Toolkit <support@globus.org>  Tue, 05 Sep 2017 14:33:22 -0400
+
+globus-gsi-sysconfig (6.11-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update for el.5 openssl101e
+
+ -- Globus Toolkit <support@globus.org>  Thu, 08 Sep 2016 15:18:44 -0400
+
+globus-gsi-sysconfig (6.10-1+gt6.@distro@) @distro@; urgency=low
+
+  * Updates for OpenSSL 1.1.0
+
+ -- Globus Toolkit <support@globus.org>  Tue, 16 Aug 2016 15:08:47 -0400
+
 globus-gsi-sysconfig (6.9-1+gt6.@distro@) @distro@; urgency=low
 
   * Remove @} without matching @{

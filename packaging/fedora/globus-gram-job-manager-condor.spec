@@ -1,14 +1,19 @@
 %{!?perl_vendorlib: %global perl_vendorlib %(eval "`perl -V:installvendorlib`"; echo $installvendorlib)}
 
 Name:		globus-gram-job-manager-condor
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global apache_license Apache-2.0
+%else
+%global apache_license ASL 2.0
+%endif
 %global _name %(tr - _ <<< %{name})
-Version:	2.5
-Release:	3%{?dist}
+Version:	2.6
+Release:	6%{?dist}
 Vendor:	Globus Support
 Summary:	Globus Toolkit - Condor Job Manager
 
 Group:		Applications/Internet
-License:	ASL 2.0
+License:	%{apache_license}
 URL:		http://toolkit.globus.org/
 Source:	http://toolkit.globus.org/ftppub/gt6/packages/%{_name}-%{version}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -16,7 +21,6 @@ Obsoletes:      globus-gram-job-manager-setup-condor < 4.5
 Requires:	globus-gram-job-manager-scripts >= 3.4
 Requires:	globus-gass-cache-program >= 2
 Requires:	globus-common-progs >= 2
-Requires:       condor
 %if 0%{?suse_version} > 0
     %if %{suse_version} < 1140
 Requires:     perl = %{perl_version}
@@ -29,7 +33,7 @@ Requires:	perl(:MODULE_COMPAT_%(eval "`perl -V:version`"; echo $version))
 Requires(post): globus-gram-job-manager-scripts >= 4
 Requires(preun): globus-gram-job-manager-scripts >= 4
 Provides:       globus-gram-job-manager-setup
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 BuildRequires:  automake >= 1.11
 BuildRequires:  autoconf >= 2.60
 BuildRequires:  libtool >= 2.2
@@ -50,7 +54,7 @@ Condor Job Manager
 %setup -q -n %{_name}-%{version}
 
 %build
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 # Remove files that should be replaced during bootstrap
 rm -rf autom4te.cache
 
@@ -83,7 +87,7 @@ rm -rf $RPM_BUILD_ROOT
 if [ $1 -eq 1 ]; then
     globus-gatekeeper-admin -e jobmanager-condor > /dev/null 2>&1 || :
     if [ ! -f /etc/grid-services/jobmanager ]; then
-        globus-gatekeeper-admin -e jobmanager-condor -n jobmanager
+        globus-gatekeeper-admin -e jobmanager-condor -n jobmanager || :
     fi
 fi
 
@@ -101,12 +105,29 @@ fi
 %defattr(-,root,root,-)
 %dir %{_docdir}/%{name}-%{version}
 %{_docdir}/%{name}-%{version}/GLOBUS_LICENSE
+%dir %{_sysconfdir}/grid-services
+%dir %{_sysconfdir}/grid-services/available
+%dir %{_sysconfdir}/globus
+%dir %{perl_vendorlib}/Globus
+%dir %{perl_vendorlib}/Globus/GRAM
+%dir %{perl_vendorlib}/Globus/GRAM/JobManager
+%dir %{_datadir}/globus
+%dir %{_datadir}/globus/globus_gram_job_manager
 %config(noreplace) %{_sysconfdir}/grid-services/available/jobmanager-condor
 %config(noreplace) %{_sysconfdir}/globus/globus-condor.conf
 %{perl_vendorlib}/Globus/GRAM/JobManager/condor.pm
 %{_datadir}/globus/globus_gram_job_manager/condor.rvf
 
 %changelog
+* Thu Sep 08 2016 Globus Toolkit <support@globus.org> - 2.6-6
+- Rebuild after changes for el.5 with openssl101e
+
+* Mon Aug 29 2016 Globus Toolkit <support@globus.org> - 2.6-5
+- Updates for SLES 12
+
+* Sat Aug 20 2016 Globus Toolkit <support@globus.org> - 2.6-1
+- Update bug report URL
+
 * Thu Oct 22 2015 Globus Toolkit <support@globus.org> - 2.5-3
 - BuildArch: noarch
 
@@ -139,7 +160,7 @@ fi
 - Repackage for GT6 without GPT
 
 * Wed Jun 26 2013 Globus Toolkit <support@globus.org> - 1.4-4
-- GT-424: New Fedora Packaging Guideline - no %_isa in BuildRequires
+- GT-424: New Fedora Packaging Guideline - no %%_isa in BuildRequires
 
 * Wed Feb 20 2013 Globus Toolkit <support@globus.org> - 1.4-3
 - Workaround missing F18 doxygen/latex dependency

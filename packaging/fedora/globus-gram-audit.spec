@@ -1,21 +1,25 @@
 %{!?perl_vendorlib: %global perl_vendorlib %(eval "`perl -V:installvendorlib`"; echo $installvendorlib)}
 
 Name:		globus-gram-audit
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global apache_license Apache-2.0
+%else
+%global apache_license ASL 2.0
+%endif
 %global _name %(tr - _ <<< %{name})
-Version:	4.4
-Release:	2%{?dist}
+Version:	4.6
+Release:	1%{?dist}
 Vendor:	Globus Support
 Summary:	Globus Toolkit - GRAM Auditing
 
 Group:		Applications/Internet
-License:	ASL 2.0
+License:	%{apache_license}
 URL:		http://toolkit.globus.org/
 Source:	http://toolkit.globus.org/ftppub/gt6/packages/%{_name}-%{version}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-%if %{?fedora}%{!?fedora:0} >= 10 || %{?rhel}%{!?rhel:0} >= 6
+%if %{?fedora}%{!?fedora:0} >= 10 || %{?rhel}%{!?rhel:0} >= 6 || %{?suse_version}%{!?suse_version:0} >= 1315
 BuildArch:      noarch
 %endif
-Requires:	globus-common >= 14
 %if 0%{?suse_version} > 0
     %if %{suse_version} < 1140
 Requires:     perl = %{perl_version}
@@ -29,10 +33,13 @@ Requires:	perl(DBI)
 %if 0%{?suse_version} == 0
 Requires:	crontabs
 %endif
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 BuildRequires:	automake >= 1.11
 BuildRequires:	autoconf >= 2.60
 BuildRequires:	libtool >= 2.2
+%endif
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+Recommends:     cron
 %endif
 
 %description
@@ -68,6 +75,10 @@ make %{?_smp_mflags}
 rm -rf $RPM_BUILD_ROOT
 make install DESTDIR=$RPM_BUILD_ROOT
 
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+rm -rf $RPM_BUILD_ROOT%{_localstatedir}/lib/globus/gram-audit
+%endif
+
 %clean
 rm -rf $RPM_BUILD_ROOT
 
@@ -77,19 +88,38 @@ if [ $1 -eq 1 ]; then
     || globus-gram-audit --create --quiet \
     || :
 fi
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+mkdir -p %{_localstatedir}/lib/globus
+mkdir -m 01733 -p %{_localstatedir}/lib/globus/gram-audit
+%endif
 
 %files
 %defattr(-,root,root,-)
+%dir %{_localstatedir}/lib/globus
+%if %{?suse_version}%{!?suse_version:0} < 1315
 %dir %{_localstatedir}/lib/globus/gram-audit
+%endif
 %dir %{_docdir}/%{name}-%{version}
 %{_sbindir}/globus-gram-audit
 %{_docdir}/%{name}-%{version}/GLOBUS_LICENSE
+%dir %{_datadir}/globus
+%dir %{_datadir}/globus/gram-audit
 %{_datadir}/globus/gram-audit/*
 %{_mandir}/man8/*
 %config(noreplace) %{_sysconfdir}/cron.hourly/globus-gram-audit.cron
+%dir %{_sysconfdir}/globus
 %config(noreplace) %{_sysconfdir}/globus/gram-audit.conf
 
 %changelog
+* Thu Sep 08 2016 Globus Toolkit <support@globus.org> - 4.6-1
+- Update for el.5 openssl101e, replace docbook with asciidoc
+
+* Mon Aug 29 2016 Globus Toolkit <support@globus.org> - 4.5-7
+- Updates for SLES 12
+
+* Sat Aug 20 2016 Globus Toolkit <support@globus.org> - 4.5-1
+- Update bug report URL
+
 * Thu Aug 06 2015 Globus Toolkit <support@globus.org> - 4.4-2
 - Add vendor
 
@@ -109,7 +139,7 @@ fi
 - Packaging fixes
 
 * Wed Jun 26 2013 Globus Toolkit <support@globus.org> - 3.2-5
-- GT-424: New Fedora Packaging Guideline - no %_isa in BuildRequires
+- GT-424: New Fedora Packaging Guideline - no %%_isa in BuildRequires
 
 * Mon Nov 26 2012 Globus Toolkit <support@globus.org> - 3.2-4
 - 5.2.3

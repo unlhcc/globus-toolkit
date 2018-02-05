@@ -1,45 +1,78 @@
 Name:		globus-gridftp-server-control
+%global soname 0
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global apache_license Apache-2.0
+%else
+%global apache_license ASL 2.0
+%endif
 %global _name %(tr - _ <<< %{name})
-Version:	4.1
+Version:	6.1
 Release:	1%{?dist}
 Vendor:	Globus Support
 Summary:	Globus Toolkit - Globus GridFTP Server Library
 
 Group:		System Environment/Libraries
-License:	ASL 2.0
+License:	%{apache_license}
 URL:		http://toolkit.globus.org/
 Source:	http://toolkit.globus.org/ftppub/gt6/packages/%{_name}-%{version}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
-Requires:	globus-common%{?_isa} >= 14
-Requires:	globus-xio%{?_isa} >= 3
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+Requires:	libglobus_xio_pipe_driver%{?_isa} >= 2
+Requires:	libglobus_xio_gsi_driver%{?_isa} >= 2
+%else
 Requires:	globus-xio-pipe-driver%{?_isa} >= 2
 Requires:	globus-xio-gsi-driver%{?_isa} >= 2
-Requires:	globus-gssapi-error%{?_isa} >= 4
-Requires:	globus-gss-assist%{?_isa} >= 8
+%endif
 
 BuildRequires:	globus-xio-pipe-driver-devel >= 2
 BuildRequires:	globus-common-devel >= 14
 BuildRequires:	globus-xio-gsi-driver-devel >= 2
 BuildRequires:	globus-xio-devel >= 3
 BuildRequires:	globus-gss-assist-devel >= 8
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 BuildRequires:  automake >= 1.11
 BuildRequires:  autoconf >= 2.60
 BuildRequires:  libtool >= 2.2
 %endif
 BuildRequires:  pkgconfig
 
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global mainpkg lib%{_name}%{soname}
+%global nmainpkg -n %{mainpkg}
+%else
+%global mainpkg %{name}
+%endif
+
+%if %{?nmainpkg:1}%{!?nmainpkg:0} != 0
+%package %{?nmainpkg}
+Summary:	Globus Toolkit - Globus GridFTP Server Library
+Group:		System Environment/Libraries
+Requires:	libglobus_xio_pipe_driver%{?_isa} >= 2
+Requires:	libglobus_xio_gsi_driver%{?_isa} >= 2
+%endif
+
 %package devel
 Summary:	Globus Toolkit - Globus GridFTP Server Library Development Files
 Group:		Development/Libraries
-Requires:	%{name}%{?_isa} = %{version}-%{release}
+Requires:	%{mainpkg}%{?_isa} = %{version}-%{release}
 Requires:	globus-xio-pipe-driver-devel%{?_isa} >= 2
 Requires:	globus-common-devel%{?_isa} >= 14
 Requires:	globus-xio-gsi-driver-devel%{?_isa} >= 2
 Requires:	globus-xio-devel%{?_isa} >= 3
 Requires:	globus-gssapi-error-devel%{?_isa} >= 4
 Requires:	globus-gss-assist-devel%{?_isa} >= 8
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%description %{?nmainpkg}
+The Globus Toolkit is an open source software toolkit used for building Grid
+systems and applications. It is being developed by the Globus Alliance and
+many others all over the world. A growing number of projects and companies are
+using the Globus Toolkit to unlock the potential of grids for their cause.
+
+The %{mainpkg} package contains:
+Globus GridFTP Server Library
+%endif
 
 %description
 The Globus Toolkit is an open source software toolkit used for building Grid
@@ -63,7 +96,7 @@ Globus GridFTP Server Library Development Files
 %setup -q -n %{_name}-%{version}
 
 %build
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 # Remove files that should be replaced during bootstrap
 rm -rf autom4te.cache
 
@@ -89,11 +122,11 @@ find $RPM_BUILD_ROOT%{_libdir} -name 'lib*.la' -exec rm -v '{}' \;
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%post -p /sbin/ldconfig
+%post %{?nmainpkg} -p /sbin/ldconfig
 
-%postun -p /sbin/ldconfig
+%postun %{?nmainpkg} -p /sbin/ldconfig
 
-%files
+%files %{?nmainpkg}
 %defattr(-,root,root,-)
 %dir %{_docdir}/%{name}-%{version}
 %{_docdir}/%{name}-%{version}/GLOBUS_LICENSE
@@ -106,6 +139,30 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/pkgconfig/%{name}.pc
 
 %changelog
+* Wed Nov 01 2017 Globus Toolkit <support@globus.org> - 6.1-1
+- Don't error if acquire_cred fails when vhost env is set
+
+* Wed Sep 06 2017 Globus Toolkit <support@globus.org> - 6.0-1
+- Add support for control channel over TLS
+
+* Mon Aug 07 2017 Globus Toolkit <support@globus.org> - 5.2-1
+- allow 400 responses to stat failures
+
+* Thu Jul 13 2017 Globus Toolkit <support@globus.org> - 5.1-1
+- fix mem error on empty mlsc responses
+
+* Fri Mar 03 2017 Globus Toolkit <support@globus.org> - 5.0-1
+- extend response_type to allow for ftp error codes
+
+* Thu Sep 08 2016 Globus Toolkit <support@globus.org> - 4.2-4
+- Rebuild after changes for el.5 with openssl101e
+
+* Thu Aug 25 2016 Globus Toolkit <support@globus.org> - 4.2-2
+- Updates for SLES 12
+
+* Sat Aug 20 2016 Globus Toolkit <support@globus.org> - 4.2-1
+- Update bug report URL
+
 * Tue May 03 2016 Globus Toolkit <support@globus.org> - 4.1-1
 - Spelling
 
@@ -146,7 +203,7 @@ rm -rf $RPM_BUILD_ROOT
 - GT-472: GridFTP server fails to detect client disconnection with piplining
 
 * Wed Jun 26 2013 Globus Toolkit <support@globus.org> - 2.9-2
-- GT-424: New Fedora Packaging Guideline - no %_isa in BuildRequires
+- GT-424: New Fedora Packaging Guideline - no %%_isa in BuildRequires
 
 * Wed Jun 05 2013 Globus Toolkit <support@globus.org> - 2.9-1
 - GT-396: fix mlst on filenames that end in a newline

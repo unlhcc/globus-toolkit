@@ -1,6 +1,6 @@
 AC_PREREQ([2.60])
 
-AC_INIT([globus_io],[11.5],[https://globus.atlassian.net/])
+AC_INIT([globus_io],[11.9],[https://github.com/globus/globus-toolkit/issues])
 AC_CONFIG_MACRO_DIR([m4])
 AC_SUBST([MAJOR_VERSION], [${PACKAGE_VERSION%%.*}])
 AC_SUBST([MINOR_VERSION], [${PACKAGE_VERSION##*.}])
@@ -27,6 +27,10 @@ AM_CONDITIONAL([CYGPATH_W_DEFINED], [
         ;;
     esac])
 
+AC_PATH_PROGS([OPENSSL], openssl)
+
+AM_CONDITIONAL([ENABLE_TESTS], [test x"$OPENSSL" != x])
+
 PKG_CHECK_MODULES([PACKAGE_DEP], $PACKAGE_DEPS)
 
 PKG_CHECK_EXISTS([globus-xio-gsi-driver >= 2], [
@@ -42,7 +46,7 @@ AC_CONFIG_FILES(
 	Makefile
         test/Makefile
 	version.h
-	test/openssl.cnf
+	test/testcred.cnf
 )
 
 AC_OUTPUT

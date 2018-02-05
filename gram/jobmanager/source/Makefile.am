@@ -18,7 +18,7 @@ man_MANS = globus-personal-gatekeeper.1 rsl.5 globus-job-manager.8
 doc_DATA = GLOBUS_LICENSE
 
 libglobus_gram_job_manager_la_LIBADD = \
-	$(PACKAGE_DEP_LIBS)
+	$(PACKAGE_DEP_LIBS) $(OPENSSL_LIBS)
 libglobus_gram_job_manager_la_SOURCES = \
 	globus_gram_job_manager.h \
         globus_gram_job_manager_config.c \
@@ -56,6 +56,7 @@ default_rvf.c: $(srcdir)/globus-gram-job-manager.rvf
 
 # Compiler flags
 AM_CPPFLAGS = $(PACKAGE_DEP_CFLAGS) \
+              $(OPENSSL_CFLAGS) \
               -I$(top_srcdir) \
               -I$(top_builddir) \
               -I$(srcdir)/rvf \
@@ -63,18 +64,18 @@ AM_CPPFLAGS = $(PACKAGE_DEP_CFLAGS) \
 globus_job_manager_LDADD = \
 	./libglobus_gram_job_manager.la \
 	./rvf/libglobus_rvf.la \
-	$(PACKAGE_DEP_LIBS) $(XML_LIBS)
+	$(PACKAGE_DEP_LIBS) $(OPENSSL_LIBS) $(XML_LIBS)
 
 globus_gram_streamer_SOURCES = globus_gram_streamer.c
 globus_gram_streamer_LDADD = \
 	./libglobus_gram_job_manager.la \
 	./rvf/libglobus_rvf.la \
-	$(PACKAGE_DEP_LIBS) $(XML_LIBS)
+	$(PACKAGE_DEP_LIBS) $(OPENSSL_LIBS) $(XML_LIBS)
 
 
-MANUAL_SOURCE = globus-personal-gatekeeper.xml \
-                globus-job-manager.xml \
-                rsl.xml
+MANUAL_SOURCE = globus-personal-gatekeeper.txt \
+                globus-job-manager.txt \
+                rsl.txt
 
 
 # Files which we want to put in the source package
@@ -94,8 +95,8 @@ EXTRA_DIST = dirt.sh \
 
 globus_gram_job_manager_rsl.dox: globus-gram-job-manager.rvf
 	perl $(top_srcdir)/scripts/create_rsl_documentation.pl < $< > $@
-rsl.xml: globus-gram-job-manager.rvf
-	perl $(top_srcdir)/scripts/create_rsl_documentation.pl -x < $< > $@
+rsl.txt: globus-gram-job-manager.rvf
+	perl $(top_srcdir)/scripts/create_rsl_documentation.pl -a < $< > $@
 
 install-data-hook:
 	mkdir -p $(DESTDIR)$(localstatedir)/lib/globus/gram_job_state
@@ -111,17 +112,11 @@ CLEANFILES = \
     globus_gram_job_manager_rsl.dox
 
 if BUILD_MANPAGES
-SUFFIXES = .xml .1 .5 .8
+SUFFIXES = .txt .1 .5 .8
 
-.xml.1:
-	$(XMLLINT) --nonet --dtdvalid $(DOCBOOK_DTD) $< > /dev/null
-	$(XSLTPROC) --nonet $(MAN_XSL) $<
-.xml.5:
-	$(XMLLINT) --nonet --dtdvalid $(DOCBOOK_DTD) $< > /dev/null
-	$(XSLTPROC) --nonet $(MAN_XSL) $<
-.xml.8:
-	$(XMLLINT) --nonet --dtdvalid $(DOCBOOK_DTD) $< > /dev/null
-	$(XSLTPROC) --nonet $(MAN_XSL) $<
+.txt.1 .txt.5 .txt.8:
+	$(A2X) -d manpage -f manpage $<
+
 MAINTAINERCLEANFILES = $(man_MANS)
 endif
 

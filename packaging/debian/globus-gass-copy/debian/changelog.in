@@ -1,3 +1,58 @@
+globus-gass-copy (9.28-1+gt6.@distro@) @distro@; urgency=low
+
+  * add popen driver to cygwin static builds
+
+ -- Globus Toolkit <support@globus.org>  Mon, 25 Sep 2017 15:23:16 -0500
+
+globus-gass-copy (9.27-1+gt6.@distro@) @distro@; urgency=low
+
+  * prevent some race conditions
+
+ -- Globus Toolkit <support@globus.org>  Fri, 21 Apr 2017 14:47:27 -0500
+
+globus-gass-copy (9.26-1+gt6.@distro@) @distro@; urgency=low
+
+  * remove checksum data from public handle
+
+ -- Globus Toolkit <support@globus.org>  Fri, 21 Apr 2017 10:05:54 -0500
+
+globus-gass-copy (9.25-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix uninitialized field related crash
+
+ -- Globus Toolkit <support@globus.org>  Thu, 20 Apr 2017 09:45:08 -0400
+
+globus-gass-copy (9.24-1+gt6.@distro@) @distro@; urgency=low
+
+  * don't attempt sshftp data protection without creds
+  * checksum verification based on contribution from IBM
+
+ -- Globus Toolkit <support@globus.org>  Fri, 10 Mar 2017 13:22:05 -0500
+
+globus-gass-copy (9.23-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update for el.5 openssl101e, replace docbook with asciidoc
+
+ -- Globus Toolkit <support@globus.org>  Thu, 08 Sep 2016 14:44:04 -0400
+
+globus-gass-copy (9.22-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix tests run as root
+
+ -- Globus Toolkit <support@globus.org>  Fri, 19 Aug 2016 10:14:23 -0400
+
+globus-gass-copy (9.21-1+gt6.@distro@) @distro@; urgency=low
+
+  * Makefile fix
+
+ -- Globus Toolkit <support@globus.org>  Thu, 18 Aug 2016 16:08:09 -0400
+
+globus-gass-copy (9.20-1+gt6.@distro@) @distro@; urgency=low
+
+  * Updates for OpenSSL 1.1.0
+
+ -- Globus Toolkit <support@globus.org>  Tue, 16 Aug 2016 15:38:16 -0400
+
 globus-gass-copy (9.19-1+gt6.@distro@) @distro@; urgency=low
 
   * Use prelinks for tests so that they run on El Capitan

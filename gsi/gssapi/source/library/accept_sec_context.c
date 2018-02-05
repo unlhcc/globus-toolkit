@@ -66,6 +66,7 @@ GSS_CALLCONV gss_accept_sec_context(
     OM_uint32                           local_major_status;
     globus_result_t                     local_result;
     OM_uint32                           nreq_flags = 0;
+    gss_OID                             actual_mech = GSS_C_NO_OID;
     char                                dbuf[1];
     STACK_OF(X509) *                    cert_chain = NULL;
     globus_gsi_cert_utils_cert_type_t   cert_type;
@@ -115,9 +116,26 @@ GSS_CALLCONV gss_accept_sec_context(
             nreq_flags = *ret_flags;
         }
 
+        /* Use mech from cred if available */
+        if (acceptor_cred_handle != GSS_C_NO_CREDENTIAL)
+        {
+            actual_mech = acceptor_cred_handle->mech;
+        }
+
+        GLOBUS_I_GSI_GSSAPI_DEBUG_FPRINTF(
+            2, (globus_i_gsi_gssapi_debug_fstream, 
+                "accept_sec_context:OID from cred:%s\n",
+                (actual_mech == GSS_C_NO_OID)? "GSS_C_NO_OID":
+                ((g_OID_equal(actual_mech, (gss_OID) gss_mech_globus_gssapi_openssl))?
+                  "OLD MECH OID":
+                 ((g_OID_equal(actual_mech, (gss_OID) gss_mech_globus_gssapi_openssl_micv2))?
+                  "MICV2 MECH OID": "UNKNOWN MECH OID"))));
+
         major_status = globus_i_gsi_gss_create_and_fill_context(
-            & local_minor_status,
-            & context,
+            &local_minor_status,
+            &context,
+            actual_mech,
+            GSS_C_NO_NAME,
             acceptor_cred_handle,
             GSS_C_ACCEPT,
             nreq_flags);
@@ -135,7 +153,7 @@ GSS_CALLCONV gss_accept_sec_context(
 
         if (mech_type != NULL)
         {
-            *mech_type = (gss_OID) gss_mech_globus_gssapi_openssl;
+            *mech_type = actual_mech;
         }
 
         if (ret_flags != NULL)
@@ -389,8 +407,17 @@ GSS_CALLCONV gss_accept_sec_context(
                     major_status = GSS_S_FAILURE;
                     break;
                 }
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
                 peer_digest = EVP_get_digestbynid(
                         OBJ_obj2nid(peer_cert->sig_alg->algorithm));
+#else
+                {
+                    X509_ALGOR *algor = X509_get0_tbs_sigalg(peer_cert);
+                    peer_digest = EVP_get_digestbynid(
+                            OBJ_obj2nid(algor->algorithm));
+
+                }
+#endif
 
                 local_result = globus_gsi_proxy_handle_attrs_set_signing_algorithm(
                         proxy_handle_attrs, (EVP_MD *) peer_digest);
@@ -511,7 +538,8 @@ GSS_CALLCONV gss_accept_sec_context(
                     &local_minor_status,
                     GSS_C_BOTH,
                     delegated_cred_handle_P,
-                    &delegated_cred);
+                    &delegated_cred,
+                    GLOBUS_FALSE);
                 if(GSS_ERROR(major_status))
                 {
                     globus_gsi_cred_handle_destroy(delegated_cred);

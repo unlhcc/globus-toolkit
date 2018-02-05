@@ -1,3 +1,51 @@
+globus-gss-assist (11.1-1+gt6.@distro@) @distro@; urgency=low
+
+  * race condition and dependency packaging fixes
+
+ -- Globus Toolkit <support@globus.org>  Tue, 12 Sep 2017 16:25:40 -0400
+
+globus-gss-assist (11.0-1+gt6.@distro@) @distro@; urgency=low
+
+  * Add new function gss_assist_read_vhost_cred_dir() for SNI server
+
+ -- Globus Toolkit <support@globus.org>  Tue, 05 Sep 2017 14:39:11 -0400
+
+globus-gss-assist (10.21-1+gt6.@distro@) @distro@; urgency=low
+
+  * Slow grid-mapfile-delete-entry (issue #84)
+
+ -- Globus Toolkit <support@globus.org>  Tue, 10 Jan 2017 08:33:24 -0500
+
+globus-gss-assist (10.20-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update for el.5 openssl101e, replace docbook with asciidoc
+
+ -- Globus Toolkit <support@globus.org>  Thu, 08 Sep 2016 15:34:25 -0400
+
+globus-gss-assist (10.19-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix broken makefile
+
+ -- Globus Toolkit <support@globus.org>  Fri, 02 Sep 2016 14:29:54 -0400
+
+globus-gss-assist (10.18-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix grid-mapfile-add-entry is slow (issue #69)
+
+ -- Globus Toolkit <support@globus.org>  Fri, 02 Sep 2016 14:24:17 -0400
+
+globus-gss-assist (10.17-1+gt6.@distro@) @distro@; urgency=low
+
+  * Makefile fix
+
+ -- Globus Toolkit <support@globus.org>  Thu, 18 Aug 2016 16:09:55 -0400
+
+globus-gss-assist (10.16-1+gt6.@distro@) @distro@; urgency=low
+
+  * Updates for OpenSSL 1.1.0
+
+ -- Globus Toolkit <support@globus.org>  Tue, 16 Aug 2016 14:19:06 -0400
+
 globus-gss-assist (10.15-1+gt6.@distro@) @distro@; urgency=low
 
   * Fix gridmap parsing error

@@ -29,6 +29,16 @@ int
 test_establish_contexts(
     gss_ctx_id_t                       *init_context,
     gss_ctx_id_t                       *accept_context,
+    OM_uint32                           flags,
+    OM_uint32                          *major_status,
+    OM_uint32                          *minor_status);
+
+int
+test_establish_contexts_with_mechs(
+    gss_ctx_id_t                       *init_context,
+    gss_ctx_id_t                       *accept_context,
+    const gss_OID                       init_mec_type,
+    OM_uint32                           flags,
     OM_uint32                          *major_status,
     OM_uint32                          *minor_status);
 
@@ -100,8 +110,10 @@ test_case_t;
 extern const gss_OID_desc * const globus_i_gss_mech_globus_gssapi_openssl;
 extern const gss_OID_desc * const globus_i_gss_proxycertinfo_extension;
 extern const gss_OID_desc * const globus_i_gss_ext_x509_cert_chain_oid;
+extern const gss_OID_desc * const gss_ext_alpn_oid;
 extern gss_OID_desc * globus_i_gss_nt_host_ip;
 extern gss_OID_desc * globus_i_gss_nt_x509;
+
 
 
 #ifndef GLOBUS_GSS_C_NT_HOST_IP 

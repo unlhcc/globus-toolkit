@@ -1,3 +1,27 @@
+globus-io (11.9-1+gt6.@distro@) @distro@; urgency=low
+
+  * Remove legacy SSLv3 support
+
+ -- Globus Toolkit <support@globus.org>  Fri, 21 Apr 2017 14:22:28 -0400
+
+globus-io (11.8-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update for el.5 openssl101e
+
+ -- Globus Toolkit <support@globus.org>  Thu, 08 Sep 2016 13:36:20 -0400
+
+globus-io (11.7-1+gt6.@distro@) @distro@; urgency=low
+
+  * Makefile fix
+
+ -- Globus Toolkit <support@globus.org>  Thu, 18 Aug 2016 16:10:06 -0400
+
+globus-io (11.6-1+gt6.@distro@) @distro@; urgency=low
+
+  * Updates for OpenSSL 1.1.0
+
+ -- Globus Toolkit <support@globus.org>  Tue, 16 Aug 2016 15:35:22 -0400
+
 globus-io (11.5-1+gt6.@distro@) @distro@; urgency=low
 
   * Use new dlpreopen variable from gsi driver to build tests for installer

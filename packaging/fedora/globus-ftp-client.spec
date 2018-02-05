@@ -1,19 +1,24 @@
 Name:		globus-ftp-client
+%global soname 2
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global apache_license Apache-2.0
+%else
+%global apache_license ASL 2.0
+%endif
+
 %global _name %(tr - _ <<< %{name})
-Version:	8.29
+Version:	8.36
 Release:	1%{?dist}
 Vendor:	Globus Support
 Summary:	Globus Toolkit - GridFTP Client Library
 
 Group:		System Environment/Libraries
-License:	ASL 2.0
+License:	%{apache_license}
 URL:		http://toolkit.globus.org/
 Source:	http://toolkit.globus.org/ftppub/gt6/packages/%{_name}-%{version}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 Requires:	globus-xio-popen-driver%{?_isa} >= 2
-Requires:	globus-common%{?_isa} >= 15
-Requires:	globus-ftp-control%{?_isa} >= 4
 
 BuildRequires:	globus-xio-popen-driver-devel >= 2
 BuildRequires:	globus-common-devel >= 15
@@ -24,11 +29,16 @@ BuildRequires:	doxygen
 BuildRequires:	graphviz
 BuildRequires:	globus-gridftp-server-devel >= 0
 BuildRequires:	globus-xio-pipe-driver-devel >= 0
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
 BuildRequires:  openssl
-%if "%{?rhel}" == "5"
-BuildRequires:	graphviz-gd
+BuildRequires:  libopenssl-devel
+%else
+BuildRequires:  openssl
+BuildRequires:  openssl-devel
 %endif
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 BuildRequires:  automake >= 1.11
 BuildRequires:  autoconf >= 2.60
 BuildRequires:  libtool >= 2.2
@@ -43,10 +53,23 @@ BuildRequires: libtool
 BuildRequires: libtool-ltdl-devel
 %endif
 
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global mainpkg lib%{_name}%{soname}
+%global nmainpkg -n %{mainpkg}
+%else
+%global mainpkg %{name}
+%endif
+
+%if %{?nmainpkg:1}%{!?nmainpkg:0} != 0
+%package %{?nmainpkg}
+Summary:	Globus Toolkit - Globus XIO Framework
+Group:		System Environment/Libraries
+%endif
+
 %package devel
 Summary:	Globus Toolkit - GridFTP Client Library Development Files
 Group:		Development/Libraries
-Requires:	%{name}%{?_isa} = %{version}-%{release}
+Requires:	%{mainpkg}%{?_isa} = %{version}-%{release}
 Requires:	globus-xio-popen-driver-devel%{?_isa}
 Requires:	globus-common-devel%{?_isa} >= 15
 Requires:	globus-ftp-control-devel%{?_isa} >= 4
@@ -57,7 +80,18 @@ Group:		Documentation
 %if %{?fedora}%{!?fedora:0} >= 10 || %{?rhel}%{!?rhel:0} >= 6
 BuildArch:	noarch
 %endif
-Requires:	%{name} = %{version}-%{release}
+Requires:	%{mainpkg} = %{version}-%{release}
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%description %{?nmainpkg}
+The Globus Toolkit is an open source software toolkit used for building Grid
+systems and applications. It is being developed by the Globus Alliance and
+many others all over the world. A growing number of projects and companies are
+using the Globus Toolkit to unlock the potential of grids for their cause.
+
+The %{mainpkg} package contains:
+GridFTP Client Library
+%endif
 
 %description
 The Globus Toolkit is an open source software toolkit used for building Grid
@@ -90,13 +124,12 @@ GridFTP Client Library Documentation Files
 %setup -q -n %{_name}-%{version}
 
 %build
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 # Remove files that should be replaced during bootstrap
 rm -rf autom4te.cache
 
 autoreconf -if
 %endif
-
 
 %configure \
            --disable-static \
@@ -119,11 +152,11 @@ make %{_smp_mflags} check
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%post -p /sbin/ldconfig
+%post %{?nmainpkg} -p /sbin/ldconfig
 
-%postun -p /sbin/ldconfig
+%postun %{?nmainpkg} -p /sbin/ldconfig
 
-%files
+%files %{?nmainpkg}
 %defattr(-,root,root,-)
 %dir %{_docdir}/%{name}-%{version}
 %doc %{_docdir}/%{name}-%{version}/GLOBUS_LICENSE
@@ -143,6 +176,30 @@ rm -rf $RPM_BUILD_ROOT
 %{_mandir}/man3/*
 
 %changelog
+* Mon Jun 26 2017 Globus Toolkit <support@globus.org> - 8.36-1
+- Replace deprecated perl POSIX::tmpnam with File::Temp::tmpnam
+
+* Fri Mar 24 2017 Globus Toolkit <support@globus.org> - 8.35-1
+- Remove some redundent tests to reduce test time
+
+* Thu Mar 09 2017 Globus Toolkit <support@globus.org> - 8.34-1
+- add FTP_TEST_RESTART_AFTER_RANGE=n to force restarts after n range markers for restart points 22 and 24 (RETR_RESPONSE and STOR_RESPONSE)
+
+* Thu Sep 08 2016 Globus Toolkit <support@globus.org> - 8.33-1
+- Update for el.5 openssl101e
+
+* Fri Aug 26 2016 Globus Toolkit <support@globus.org> - 8.32-2
+- Updates for SLES 12
+
+* Fri Aug 19 2016 Globus Toolkit <support@globus.org> - 8.32-1
+- Fix tests run as root
+
+* Thu Aug 18 2016 Globus Toolkit <support@globus.org> - 8.31-1
+- Makefile fix
+
+* Tue Aug 16 2016 Globus Toolkit <support@globus.org> - 8.30-1
+- Updates for OpenSSL 1.1.0
+
 * Tue May 03 2016 Globus Toolkit <support@globus.org> - 8.29-1
 - Don't overwite LDFLAGS
 
@@ -253,7 +310,7 @@ rm -rf $RPM_BUILD_ROOT
 - GT-425: add environment variable to force IPV6 compatibility
 
 * Wed Jun 26 2013 Globus Toolkit <support@globus.org> - 7.5-2
-- GT-424: New Fedora Packaging Guideline - no %_isa in BuildRequires
+- GT-424: New Fedora Packaging Guideline - no %%_isa in BuildRequires
 
 * Thu May 09 2013 Globus Toolkit <support@globus.org> - 7.5-1
 - Fix performance issue, don't need to check binary data buffers for newlines

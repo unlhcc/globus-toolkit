@@ -1,3 +1,61 @@
+gsi-openssh (7.5p1b-2+gt6.@distro@) @distro@; urgency=low
+
+  * Debian packaging for gsi-openssh-server no longer creates sshd user (#119)
+
+ -- Globus Toolkit <support@globus.org>  Tue, 27 Jun 2017 13:07:14 -0400
+
+gsi-openssh (7.5p1b-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update to GSI-OpenSSH 7.5p1b
+
+ -- Globus Toolkit <support@globus.org>  Tue, 27 Jun 2017 13:07:14 -0400
+
+gsi-openssh (7.3p1c-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update to GSI-OpenSSH 7.3p1c
+
+ -- Globus Toolkit <support@globus.org>  Tue, 18 Apr 2017 10:22:36 -0400
+
+gsi-openssh (7.3p1b-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update to GSI-OpenSSH 7.3p1b
+
+ -- Globus Toolkit <support@globus.org>  Mon, 03 Apr 2017 13:42:17 -0400
+
+gsi-openssh (7.3p1a-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update to GSI-OpenSSH 7.3p1a
+
+ -- Globus Toolkit <support@globus.org>  Fri, 24 Mar 2017 14:33:26 -0400
+
+gsi-openssh (7.1p2i-1+gt6.@distro@) @distro@; urgency=low
+
+  * Setting GSS_C_CONF_FLAG to get around the issue of
+  * SSL_export_keying_material interop error with CentOS 6
+
+ -- Globus Toolkit <support@globus.org>  Mon, 20 Mar 2017 12:28:18 -0400
+
+gsi-openssh (7.1p2h-1+gt6.@distro@) @distro@; urgency=low
+
+  * New 7.1p2h release that fixes negotiation problem from previous
+
+ -- Globus Toolkit <support@globus.org>  Mon, 06 Mar 2017 15:21:06 -0500
+
+gsi-openssh (7.1p2g-1+gt6.@distro@) @distro@; urgency=low
+
+  * New 7.1p2g release that introduces negotiation of new mechanism OID
+
+ -- Globus Toolkit <support@globus.org>  Thu, 08 Dec 2016 09:09:29 -0500
+
+gsi-openssh (7.1p2f-4+gt6.@distro@) @distro@; urgency=low
+
+  * Fix for https://github.com/globus/globus-toolkit/issues/61:
+    Debian 7 package fails to detect status of gsisshd
+  * Fix for https://github.com/globus/globus-toolkit/issues/62:
+    gsisshd prints message about /etc/gsi-openssh to stderr
+
+ -- Globus Toolkit <support@globus.org>  Thu, 18 Aug 2016 10:55:01 -0400
+
 gsi-openssh (7.1p2f-2+gt6.@distro@) @distro@; urgency=low
 
   * Fix for https://github.com/globus/globus-toolkit/issues/49
@@ -58,19 +116,19 @@ gsi-openssh (5.7-2+gt6.@distro@) @distro@; urgency=low
 
   * https://globus.atlassian.net/browse/GT-492
 
- -- Globus Toolkit <support@globus.org>  Mon, 30 June 2014 13:34:35 -0400
+ -- Globus Toolkit <support@globus.org>  Mon, 30 Jun 2014 13:34:35 -0400
 
 gsi-openssh (5.7-1+gt6.@distro@) @distro@; urgency=low
 
   * Fixes for GT6
 
- -- Globus Toolkit <support@globus.org>  Wed, 23 April 2014 13:43:00 -0400
+ -- Globus Toolkit <support@globus.org>  Wed, 23 Apr 2014 13:43:00 -0400
 
 gsi-openssh (5.7-1+gt6.@distro@) @distro@; urgency=low
 
   * update to 5.7
 
- -- Globus Toolkit <support@globus.org>  Fri, 24 January 2014 10:51:35 -0500
+ -- Globus Toolkit <support@globus.org>  Fri, 24 Jan 2014 10:51:35 -0500
 
 gsi-openssh (5.6-1) unstable; urgency=low
 

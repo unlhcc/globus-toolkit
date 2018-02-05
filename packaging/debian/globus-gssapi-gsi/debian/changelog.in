@@ -1,3 +1,139 @@
+globus-gssapi-gsi (13.5-1+gt6.@distro@) @distro@; urgency=low
+
+  * don't check uid on win
+
+ -- Globus Toolkit <support@globus.org>  Thu, 25 Jan 2018 12:41:10 -0600
+
+globus-gssapi-gsi (13.4-1+gt6.@distro@) @distro@; urgency=low
+
+  * Improve vhost support
+
+ -- Globus Toolkit <support@globus.org>  Wed, 01 Nov 2017 20:27:40 +0000
+
+globus-gssapi-gsi (13.3-1+gt6.@distro@) @distro@; urgency=low
+
+  * Allow configuration of non-root user to own credentials for root services
+
+ -- Globus Toolkit <support@globus.org>  Mon, 30 Oct 2017 13:46:22 +0000
+
+globus-gssapi-gsi (13.2-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix make clean rule (pull #114)
+  * Fix alpn mismatch test
+
+ -- Globus Toolkit <support@globus.org>  Thu, 28 Sep 2017 08:52:47 -0400
+
+globus-gssapi-gsi (13.1-1+gt6.@distro@) @distro@; urgency=low
+
+  * use X509_VHOST_CRED_DIR if set when accepting
+
+ -- Globus Toolkit <support@globus.org>  Tue, 12 Sep 2017 16:18:13 -0400
+
+globus-gssapi-gsi (13.0-1+gt6.@distro@) @distro@; urgency=low
+
+  * Add SNI vhost cred dir support
+  * Add optional ALPN processing
+
+ -- Globus Toolkit <support@globus.org>  Tue, 05 Sep 2017 14:38:00 -0400
+
+globus-gssapi-gsi (12.17-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix indicate_mechs_test when using openssl v1.1.0
+  * update to debhelper 9
+
+ -- Globus Toolkit <support@globus.org>  Wed, 21 Jun 2017 13:21:04 -0400
+
+globus-gssapi-gsi (12.16-1+gt6.@distro@) @distro@; urgency=low
+
+  * Address test issues: fix .srl dependency, reuse credential
+    in thread test
+
+ -- Globus Toolkit <support@globus.org>  Thu, 27 Apr 2017 08:43:15 -0400
+
+globus-gssapi-gsi (12.15-2+gt6.@distro@) @distro@; urgency=low
+
+  * Remove legacy SSLv3 support
+
+ -- Globus Toolkit <support@globus.org>  Fri, 21 Apr 2017 14:23:04 -0400
+
+globus-gssapi-gsi (12.14-1+gt6.@distro@) @distro@; urgency=low
+
+  * Merge "Don't unlock unlocked mutex #91". Add Test case.
+
+ -- Globus Toolkit <support@globus.org>  Mon, 20 Mar 2017 11:17:53 -0400
+
+globus-gssapi-gsi (12.13-1+gt6.@distro@) @distro@; urgency=low
+
+  * Skip mech v1 tests for OpenSSL >= 1.1.0
+
+ -- Globus Toolkit <support@globus.org>  Mon, 19 Dec 2016 09:48:41 -0500
+
+globus-gssapi-gsi (12.12-1+gt6.@distro@) @distro@; urgency=low
+
+  * More updates for mech negotiation
+
+ -- Globus Toolkit <support@globus.org>  Tue, 08 Nov 2016 14:14:26 -0500
+
+globus-gssapi-gsi (12.11-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix function arg mismatch
+
+ -- Globus Toolkit <support@globus.org>  Mon, 24 Oct 2016 15:54:34 -0400
+
+globus-gssapi-gsi (12.10-1+gt6.@distro@) @distro@; urgency=low
+
+  * Add support for new mech oid for different MIC formats
+
+ -- Globus Toolkit <support@globus.org>  Fri, 21 Oct 2016 13:27:10 -0400
+
+globus-gssapi-gsi (12.9-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix bad index references
+
+ -- Globus Toolkit <support@globus.org>  Wed, 21 Sep 2016 13:29:32 -0400
+
+globus-gssapi-gsi (12.8-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix hash detection
+
+ -- Globus Toolkit <support@globus.org>  Tue, 20 Sep 2016 09:08:43 -0400
+
+globus-gssapi-gsi (12.7-1+gt6.@distro@) @distro@; urgency=low
+
+  * Add backward compatibility fallback in verify_mic
+
+ -- Globus Toolkit <support@globus.org>  Mon, 19 Sep 2016 16:19:58 -0400
+
+globus-gssapi-gsi (12.6-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update for el.5 openssl101e
+
+ -- Globus Toolkit <support@globus.org>  Thu, 08 Sep 2016 13:24:51 -0400
+
+globus-gssapi-gsi (12.5-1+gt6.@distro@) @distro@; urgency=low
+
+  * More tweaks to get_mic/verify_mic for 1.0.1
+
+ -- Globus Toolkit <support@globus.org>  Tue, 06 Sep 2016 16:51:40 -0400
+
+globus-gssapi-gsi (12.4-1+gt6.@distro@) @distro@; urgency=low
+
+  * Updates for mic handling without using internal openssl structs
+
+ -- Globus Toolkit <support@globus.org>  Tue, 06 Sep 2016 14:28:54 -0400
+
+globus-gssapi-gsi (12.3-1+gt6.@distro@) @distro@; urgency=low
+
+  * Makefile fix
+
+ -- Globus Toolkit <support@globus.org>  Thu, 18 Aug 2016 16:10:01 -0400
+
+globus-gssapi-gsi (12.2-1+gt6.@distro@) @distro@; urgency=low
+
+  * Updates for OpenSSL 1.1.0
+
+ -- Globus Toolkit <support@globus.org>  Tue, 16 Aug 2016 15:29:59 -0400
+
 globus-gssapi-gsi (12.1-1+gt6.@distro@) @distro@; urgency=low
 
   * Spelling

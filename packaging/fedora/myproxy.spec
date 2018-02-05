@@ -1,44 +1,53 @@
 %{!?_initddir: %global _initddir %{_initrddir}}
 Name:           myproxy
+%global soname 6
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global apache_license Apache-2.0
+%global bsd_license BSD-4-Clause
+%global libpkg libmyproxy%{soname}
+%global nlibpkg -n libmyproxy%{soname}
+%else
+%global apache_license ASL 2.0
+%global bsd_license BSD
+%global libpkg  myproxy-libs
+%global nlibpkg libs
+%endif
 %global _name %(tr - _ <<< %{name})
-Version:	6.1.18
-Release:	1%{?dist}
-Vendor:	Globus Support
+Version:	6.1.28
+Release:	4%{?dist}
+Vendor: Globus Support
 Summary:        Manage X.509 Public Key Infrastructure (PKI) security credentials
 
 Group:          System Environment/Daemons
-License:        NCSA and BSD and ASL 2.0
+License:        NCSA and %{bsd_license} and %{apache_license}
 URL:            http://grid.ncsa.illinois.edu/myproxy/
 Source0:        http://toolkit.globus.org/ftppub/gt6/packages/%{_name}-%{version}.tar.gz
 
-#Source1:        myproxy.init
-#Source2:        myproxy.sysconfig
-#Source3:        README.Fedora
-
-#VOMS has two alternate APIs which are the "same". vomsapi is the
-#newer though not that new. myproxy is the last software in
-#EPEL using the old vomsc.
-#Patch to go upstream myproxy though they are aware.
-#Patch0:         https://raw.githubusercontent.com/globus/globus-toolkit/globus_6_branch/myproxy.gt6.diff
-
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+
+BuildRequires:  openssl
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+Requires:       insserv
+Requires(post): %insserv_prereq  %fillup_prereq
+BuildRequires:  insserv
+BuildRequires:  shadow
+%endif
 
 BuildRequires:  globus-gss-assist-devel >= 8
 BuildRequires:  globus-usage-devel >= 3
 BuildRequires:  pam-devel
-%if 0%{?suse_version} == 0
+
+%if %{?fedora}%{!?fedora:0} > 0 || %{?rhel}%{!?rhel:0} > 5
 BuildRequires:  voms-devel >= 1.9.12.1
 %endif
+
 BuildRequires:  cyrus-sasl-devel
-%if 0%{?suse_version} != 0
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
 BuildRequires:  openldap2-devel
 %else
-%if "%{?rhel}" != "4"
 BuildRequires:  openldap-devel >= 2.3
-%endif
-%endif
-%if "%{?suse_version}" != "0"
-BuildRequires:      krb5-devel >= 1
 %endif
 
 BuildRequires:      globus-proxy-utils >= 5
@@ -48,12 +57,12 @@ BuildRequires:      globus-xio-devel >= 3
 BuildRequires:      globus-usage-devel >= 3
 BuildRequires:      globus-gss-assist-devel >= 8
 
-Requires:      myproxy-libs = %{version}-%{release}
 Requires:      globus-proxy-utils >= 5
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
-BuildRequires:	automake >= 1.11
-BuildRequires:	autoconf >= 2.60
-BuildRequires:	libtool >= 2.2
+Requires:      %{libpkg}%{?_isa} = %{version}-%{release}
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
+BuildRequires:  automake >= 1.11
+BuildRequires:  autoconf >= 2.60
+BuildRequires:  libtool >= 2.2
 %endif
 BuildRequires:  pkgconfig
 
@@ -68,12 +77,11 @@ authority to allow users to securely obtain credentials when and where needed.
 Users run myproxy-logon to authenticate and obtain credentials, including 
 trusted CA certificates and Certificate Revocation Lists (CRLs). 
 
-%package libs
+%package %{nlibpkg}
 Summary:       Manage X.509 Public Key Infrastructure (PKI) security credentials 
 Group:         System Environment/Daemons
-Obsoletes:     myproxy < 5.1-3
 
-%description libs
+%description %{nlibpkg}
 MyProxy is open source software for managing X.509 Public Key Infrastructure 
 (PKI) security credentials (certificates and private keys). MyProxy 
 combines an online credential repository with an online certificate 
@@ -84,13 +92,9 @@ trusted CA certificates and Certificate Revocation Lists (CRLs).
 Package %{name}-libs contains runtime libs for MyProxy.
 
 %package devel
-Requires:      myproxy-libs = %{version}-%{release}
-# in .el5 and 4 this dependency is not picked up
-# automatically via pkgconfig
-%if  0%{?el4}%{?el5}
-Requires:      globus-gss-assist-devel > 8
-Requires:      globus-usage-devel >= 3
-%endif
+Requires:      %{libpkg}%{?_isa}  = %{version}-%{release}
+Requires:      globus-gss-assist-devel%{?_isa}  > 8
+Requires:      globus-usage-devel%{?_isa} >= 3
 
 Summary:       Develop X.509 Public Key Infrastructure (PKI) security credentials 
 Group:         System Environment/Daemons
@@ -106,19 +110,20 @@ trusted CA certificates and Certificate Revocation Lists (CRLs).
 Package %{name}-devel contains development files for MyProxy.
 
 %package server
-Requires(pre):    shadow-utils
 %if 0%{?suse_version} == 0
+Requires:         %{libpkg}%{?_isa} = %{version}-%{release}
+Requires(pre):    shadow-utils
 Requires(post):   chkconfig
 Requires(preun):  chkconfig
 Requires(preun):  initscripts
 Requires(postun): initscripts
 %else
+Requires(pre):    shadow
 Requires(preun):  sysconfig
 Requires(preun):  aaa_base
 Requires(postun): sysconfig
 Requires(postun): aaa_base
 %endif
-Requires:         myproxy-libs = %{version}-%{release}
 Summary:          Server for X.509 Public Key Infrastructure (PKI) security credentials 
 Group:            System Environment/Daemons
 
@@ -136,8 +141,8 @@ Package %{name}-server contains the MyProxy server.
 # not needed for normal operation and pull in
 # a load of perl dependencies.
 %package       admin
+Requires:      %{libpkg}%{?_isa} = %{version}-%{release}
 Requires:      myproxy-server = %{version}-%{release}
-Requires:      myproxy-libs   = %{version}-%{release}
 Requires:      myproxy = %{version}-%{release}
 Requires:      globus-gsi-cert-utils-progs >= 8
 Summary:       Server for X.509 Public Key Infrastructure (PKI) security credentials 
@@ -152,8 +157,6 @@ Users run myproxy-logon to authenticate and obtain credentials, including
 trusted CA certificates and Certificate Revocation Lists (CRLs). 
 
 Package %{name}-admin contains the MyProxy server admin commands.
-
-
 
 %package doc
 Requires:      myproxy = %{version}-%{release}
@@ -171,14 +174,12 @@ trusted CA certificates and Certificate Revocation Lists (CRLs).
 Package %{name}-doc contains the MyProxy documentation.
 
 
-%if 0%{?suse_version} == 0
+%if %{?rhel}%{!?rhel:0} > 5 || %{?fedora}%{!?fedora:0} > 0
 %package voms
 Summary:       Manage X.509 Public Key Infrastructure (PKI) security credentials 
 Group:         System Environment/Daemons
 Obsoletes:     myproxy < 5.1-3
-%if 0%{?suse_version} == 0
 Requires:      voms-clients
-%endif
 
 %description voms
 MyProxy is open source software for managing X.509 Public Key Infrastructure 
@@ -193,13 +194,14 @@ Package %{name}-libs contains runtime libs for MyProxy to use VOMS.
 
 %prep
 %setup -q -n myproxy-%{version}
-#%patch0 -p1
-#cp -p %{SOURCE1} .
-#cp -p %{SOURCE2} .
-#cp -p %{SOURCE3} .
-
 
 %build
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global initscript_config_path %{_localstatedir}/adm/fillup-templates/sysconfig.myproxy-server
+%else
+%global initscript_config_path %{_sysconfdir}/sysconfig/myproxy-server 
+%endif
+
 rm -f pkgdata/Makefile.am
 
 %if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
@@ -207,16 +209,21 @@ rm -rf autom4te.cache
 autoreconf -if
 %endif
 
-%if 0%{?suse_version} > 0
+with_kerberos5=--with-kerberos5=%{_usr}
+with_sasl2=--with-sasl2=%{_usr}
+
+%if %{?fedora}%{!?fedora:0} > 0 || %{?rhel}%{!?rhel:0} > 5
 %configure --with-openldap=%{_usr} \
-                                    --without-voms \
-                                    --with-kerberos5=%{_usr} --with-sasl2=%{_usr} \
-				    --includedir=%{_usr}/include/globus
+           --with-voms=%{_usr} \
+           --with-kerberos5=%{_usr} \
+           --with-sasl2=%{_usr} \
+           --includedir=%{_usr}/include/globus
 %else
-%configure --with-openldap=%{_usr} \
-                                    --with-voms=%{_usr} \
-                                    --with-kerberos5=%{_usr} --with-sasl2=%{_usr} \
-				    --includedir=%{_usr}/include/globus
+%configure --without-openldap \
+           --without-voms \
+           %{with_kerberos5} \
+           %{with_sasl2} \
+           --includedir=%{_usr}/include/globus
 %endif
 make %{?_smp_mflags}
 
@@ -284,7 +291,14 @@ mv $RPM_BUILD_ROOT%{_datadir}/%{name}/myproxy-server.config \
 
 
 mkdir -p $RPM_BUILD_ROOT%{_initddir}
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+mkdir -p $RPM_BUILD_ROOT%{_localstatedir}/adm/fillup-templates
+%else
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig
+%endif
+
+install  -m 644 myproxy.sysconfig $RPM_BUILD_ROOT%{initscript_config_path}
+
 %if 0%{?suse_version} == 0
 install  -m 755 myproxy.init $RPM_BUILD_ROOT%{_initddir}/myproxy-server
 %else
@@ -298,12 +312,12 @@ cat <<'EOF' > $RPM_BUILD_ROOT%{_initddir}/myproxy-server
 #
 ### BEGIN INIT INFO
 # Provides: myproxy-server
-# Required-Start:  $local_fs $network $syslog
-# Required-Stop:  $local_fs $syslog
+# Required-Start:  $remote_fs $network $syslog
+# Required-Stop:  $remote_fs $syslog
 # Should-Start:  $syslog
 # Should-Stop:  $network $syslog
 # Default-Stop: 0 1 6
-# Default-Start: 2 3 4 5
+# Default-Start: 2 3 5
 # Short-Description: Startup the MyProxy server daemon
 # Description: Server for X.509 Public Key Infrastructure (PKI) security credentials
 ### END INIT INFO
@@ -337,10 +351,10 @@ fi
 
 # A few sanity checks 
 if [ "$1" != "status" ]; then
-	[ ! -f $X509_USER_KEY ]  && log_failure_msg "$prog: No hostkey file"  && exit 0
-	[ ! -r $X509_USER_KEY ]  && log_failure_msg "$prog: Unable to read hostkey file $X509_USER_KEY"  && exit 0
-	[ ! -r $X509_USER_CERT ] && log_failure_msg "$prog: No hostcert file" && exit 0
-	[ ! -r $X509_USER_CERT ] && log_failure_msg "$prog: Unable to read hostcert file" && exit 0
+        [ ! -f $X509_USER_KEY ]  && log_failure_msg "$prog: No hostkey file"  && exit 0
+        [ ! -r $X509_USER_KEY ]  && log_failure_msg "$prog: Unable to read hostkey file $X509_USER_KEY"  && exit 0
+        [ ! -r $X509_USER_CERT ] && log_failure_msg "$prog: No hostcert file" && exit 0
+        [ ! -r $X509_USER_CERT ] && log_failure_msg "$prog: Unable to read hostcert file" && exit 0
 fi
 
 start() {
@@ -349,10 +363,10 @@ start() {
     X509_USER_CERT=$X509_USER_CERT X509_USER_KEY=$X509_USER_KEY start_daemon -p $PIDFILE "$exec" ${MYPROXY_OPTIONS}
     retval="$?"
     if [ "$retval" -eq 0 ]; then
-	log_success_msg "Started $prog"
-	pidofproc "$exec" > "$PIDFILE"
+        log_success_msg "Started $prog"
+        pidofproc "$exec" > "$PIDFILE"
     else
-	log_failure_msg "Error starting $prog"
+        log_failure_msg "Error starting $prog"
     fi
     return $retval
 }
@@ -382,19 +396,19 @@ case "$1" in
         ;;
     status)
         pidofproc -p $PIDFILE $prog > /dev/null
-	result="$?"
-	if [ "$result" -eq 0 ]; then
-	    log_success_msg "$prog is running"
-	else
-	    log_failure_msg "$prog is not running"
-	fi
-	exit $result
+        result="$?"
+        if [ "$result" -eq 0 ]; then
+            log_success_msg "$prog is running"
+        else
+            log_failure_msg "$prog is not running"
+        fi
+        exit $result
         ;;
     try-restart|condrestart)
         if pidofproc -p $PIDFILE $prog >/dev/null ; then
             restart
         fi
-	;;
+        ;;
     reload)
         # If config can be reloaded without restarting, implement it here,
         # remove the "exit", and add "reload" to the usage message below.
@@ -409,7 +423,6 @@ esac
 EOF
 chmod 755 $RPM_BUILD_ROOT%{_initddir}/myproxy-server
 %endif
-install  -m 644 myproxy.sysconfig $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/myproxy-server
 mkdir -p $RPM_BUILD_ROOT%{_var}/lib/myproxy
 
 # Create a directory to hold myproxy owned host certificates.
@@ -422,10 +435,11 @@ rm -rf $RPM_BUILD_ROOT
 %check 
 PATH=.:$PATH make check
 
-%post libs -p /sbin/ldconfig
-%postun libs -p /sbin/ldconfig
+%post %{nlibpkg} -p /sbin/ldconfig
+%postun %{nlibpkg} -p /sbin/ldconfig
 
 %pre server
+PATH=$PATH:/usr/sbin:/sbin
 getent group myproxy >/dev/null || groupadd -r myproxy
 getent passwd myproxy >/dev/null || \
 useradd -r -g myproxy -d %{_var}/lib/myproxy -s /sbin/nologin \
@@ -433,18 +447,31 @@ useradd -r -g myproxy -d %{_var}/lib/myproxy -s /sbin/nologin \
 exit 0
 
 %post server
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%fillup_and_insserv -n myproxy-server myproxy-server
+%else
 /sbin/chkconfig --add myproxy-server
+%endif
 
 %preun server
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%stop_on_removal service
+%else
 if [ $1 = 0 ] ; then
     /sbin/service myproxy-server stop >/dev/null 2>&1
     /sbin/chkconfig --del myproxy-server
 fi
+%endif
 
 %postun server
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%restart_on_update service
+%insserv_cleanup
+%else
 if [ "$1" -eq "1" ] ; then
     /sbin/service myproxy-server condrestart >/dev/null 2>&1 || :
 fi
+%endif
 
 %files
 %defattr(-,root,root,-)
@@ -468,7 +495,7 @@ fi
 %{_mandir}/man1/myproxy-store.1.gz
 %doc %{_defaultdocdir}/%{name}-%{version}
 
-%files libs
+%files %{nlibpkg}
 %defattr(-,root,root,-)
 %{_libdir}/libmyproxy.so.*
 
@@ -477,15 +504,15 @@ fi
 %{_sbindir}/myproxy-server
 %{_initddir}/myproxy-server
 %config(noreplace)    %{_sysconfdir}/myproxy-server.config
-%config(noreplace)    %{_sysconfdir}/sysconfig/myproxy-server
+%config(noreplace)    %{initscript_config_path}
 # myproxy-server wants exactly 700 permission on its data 
 # which is just fine.
 %attr(0700,myproxy,myproxy) %dir %{_var}/lib/myproxy
-%dir %{_sysconfdir}/grid-security
 %dir %{_sysconfdir}/grid-security/myproxy
 
 %{_mandir}/man8/myproxy-server.8.gz
 %{_mandir}/man5/myproxy-server.config.5.gz
+%dir %{_datadir}/myproxy
 %{_datadir}/myproxy/myproxy-server.conf
 %{_datadir}/myproxy/myproxy-server.service
 
@@ -529,12 +556,59 @@ fi
 %{_libdir}/libmyproxy.so
 %{_libdir}/pkgconfig/myproxy.pc
 
-%if 0%{?suse_version} == 0
+%if %{?rhel}%{!?rhel:0} > 5 || %{?fedora}%{!?fedora:0} > 0
 %files voms
+%defattr(-,root,root,-)
 %{_libdir}/libmyproxy_voms.so
 %endif
 
 %changelog
+* Mon Jul 10 2017 Globus Toolkit <support@globus.org> - 6.1.28-4
+- Remove krb5 dependency on sles.12
+- Add /usr/sbin and /sbin for post scripts
+- Add shadow to BuildRequires
+
+* Fri May 05 2017 Globus Toolkit <support@globus.org> - 6.1.28-1
+- Fix OpenSSL 1.1.0-related typo
+- Remove el.5 cruft from spec
+
+* Fri Apr 21 2017 Globus Toolkit <support@globus.org> - 6.1.27-1
+- Remove legacy SSLv3 support
+
+* Thu Mar 23 2017 Globus Toolkit <support@globus.org> - 6.1.26-1
+- Fix error check
+
+* Tue Jan 10 2017 Globus Toolkit <support@globus.org> - 6.1.25-1
+- Don't call ERR_GET_REASON twice #89
+
+* Mon Jan 09 2017 Globus Toolkit <support@globus.org> - 6.1.24-1
+- Fix crash in myproxy_bootstrap_trust() with OpenSSL 1.1.0c
+
+* Thu Jan 05 2017 Globus Toolkit <support@globus.org> - 6.1.23-1
+- Fixes for OpenSSL 1.1.0
+- Reintroduce explicit library dependencies
+
+* Tue Dec 13 2016 Globus Toolkit <support@globus.org> - 6.1.22-1
+- Check for openssl 101e for epel5
+
+* Fri Oct 28 2016 Globus Toolkit <support@globus.org> - 6.1.21-2
+- Fix naming of dependency
+
+* Mon Sep 19 2016 Globus Toolkit <support@globus.org> - 6.1.21-1
+- Do not overwrite configuration flags
+
+* Fri Sep 09 2016 Globus Toolkit <support@globus.org> - 6.1.20-2
+- Updates for el.5 with openssl101e
+
+* Tue Sep 06 2016 Globus Toolkit <support@globus.org> - 6.1.19-2
+- Fix myproxy dependency
+
+* Wed Aug 31 2016 Globus Toolkit <support@globus.org> - 6.1.19-1
+- update myproxy debug/error msgs for accepted_peer_names type change
+
+* Tue Aug 30 2016 Globus Toolkit <support@globus.org> - 6.1.18-5
+- Updates for SLES 12
+
 * Tue May 03 2016 Globus Toolkit <support@globus.org> - 6.1.18-1
 - Spelling
 
@@ -601,8 +675,8 @@ fi
 - Propagate version to soname, add missing pkgconfig file, missing dependencies
 - fix from ysvenkat: Using command line to pass in the extra long username
 - http://myproxy.ncsa.uiuc.edu -> http://grid.ncsa.illinois.edu/myproxy/
-- prepare for MyProxy 6.1 release	27e6b38
-- documenting git-based procedure as I go	f2664dd
+- prepare for MyProxy 6.1 release       27e6b38
+- documenting git-based procedure as I go       f2664dd
 - prepare MyProxy 6.1 release
 
 * Mon Sep 29 2014 Globus Toolkit <support@globus.org> - 6.0-1
@@ -646,7 +720,7 @@ fi
 - add missing dependencies
 
 * Tue Mar 05 2013 Globus Toolkit <support@globus.org> - 5.9-4
-- Add build dependency on globus-proxy-utils for %check step
+- Add build dependency on globus-proxy-utils for %%check step
 
 * Wed Feb 20 2013 Globus Toolkit <support@globus.org> - 5.9-3
 - Workaround missing F18 doxygen/latex dependency
@@ -685,7 +759,7 @@ fi
 - Update for 5.2.0 release
 
 * Fri Oct 21 2011 Joseph Bester <bester@mcs.anl.gov> - 5.5-2
-- Fix %post* scripts to check for -eq 1
+- Fix %%post* scripts to check for -eq 1
 - Add backward-compatibility aging
 
 * Thu Sep 01 2011 Joseph Bester <bester@mcs.anl.gov> - 5.5-1

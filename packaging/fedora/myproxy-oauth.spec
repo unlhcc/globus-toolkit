@@ -1,12 +1,17 @@
 Name:		myproxy-oauth
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global apache_license Apache-2.0
+%else
+%global apache_license ASL 2.0
+%endif
 %global _name %(tr - _ <<< %{name})
-Version:	0.21
+Version:	0.27
 Release:	1%{?dist}
 Vendor:	Globus Support
 Summary:	MyProxy OAuth Delegation Serice
 
 Group:		System Environment/Libraries
-License:	ASL 2.0
+License:	%{apache_license}
 URL:		http://www.globus.org/
 Source:		http://www.globus.org/ftppub/gt5/5.2/stable/packages/src/%{_name}-%{version}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -14,7 +19,6 @@ BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires:	python
 BuildArch:      noarch
 
-Requires(pre): shadow-utils
 Requires:	pyOpenSSL
 Requires:	python-beaker
 Requires:	duo-web-python
@@ -22,11 +26,14 @@ Requires:	duo-web-python
 %if 0%{?suse_version} == 0
 Requires:       mod_ssl
 Requires:       mod_wsgi
+Requires(pre): shadow-utils
 %else
 # Available from http://download.opensuse.org/repositories/Apache/SLE_11_SP3/Apache.repo
 Requires:       apache2 >= 2.4
-# Available from http://download.opensuse.org/repositories/Apache:/Modules/Apache_SLE_11_SP3/Apache:Modules.repo
+# Available from http://download.opensuse.org/repositories/Apache:/Modules/Apache_SLE_12_SP1/Apache:Modules.repo
 Requires:       apache2-mod_wsgi
+BuildRequires:   shadow
+Requires(pre):   shadow
 %endif
 
 %if 0%{?rhel} != 0 
@@ -126,14 +133,42 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%dir %{_sysconfdir}/apache2
+%dir %{_sysconfdir}/apache2/conf.d
+%dir %{_docdir}/%{name}
+%dir %{_docdir}/%{name}/apache
+%endif
 %doc %{_docdir}/%{name}/README.txt
 %doc %{_docdir}/%{name}/apache/*
 %config(noreplace) /etc/*/conf.d/wsgi-myproxy-oauth.conf
 %dir %attr(0700,myproxyoauth,myproxyoauth) /var/lib/myproxy-oauth
 /usr/share/%{name}
+
 %{_sbindir}/myproxy-oauth-setup
 
 %changelog
+* Mon Dec 18 2017 Globus Toolkit <support@globus.org> - 0.27-1
+- Revert
+
+* Mon Mar 13 2017 Globus Toolkit <support@globus.org> - 0.26-1
+- Move apache config file deployment into setup script
+
+* Thu Nov 10 2016 Globus Toolkit <support@globus.org> - 0.25-1
+- Python exception handling workaround for 2.5-3.x
+
+* Wed Nov 09 2016 Globus Toolkit <support@globus.org> - 0.24-1
+- Verify all paths yield proper response or error response
+
+* Fri Nov 04 2016 Globus Toolkit <support@globus.org> - 0.23-1
+- Fix indent issue
+
+* Tue Oct 18 2016 Globus Toolkit <support@globus.org> - 0.22-1
+- Catch exceptions and return "400 Bad Request"
+
+* Wed Aug 31 2016 Globus Toolkit <support@globus.org> - 0.21-4
+- Updates for SLES 12
+
 * Thu Mar 10 2016 Globus Toolkit <support@globus.org> - 0.21-1
 - Fix redirect when callback_uri contains a query
 

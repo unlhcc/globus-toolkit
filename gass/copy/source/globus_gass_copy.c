@@ -23,6 +23,7 @@
 
 #include "globus_gass_copy.h"
 #include "version.h"
+#include <openssl/evp.h>
 
 static int globus_l_gass_copy_activate(void);
 
@@ -88,6 +89,17 @@ globus_l_gass_copy_perf_cancel_ftp_callback(
 globus_result_t
 globus_l_gass_copy_state_free(
     globus_gass_copy_state_t *          tate);
+
+globus_result_t
+globus_l_gass_copy_state_free_targets(
+    globus_gass_copy_state_t * state);
+
+static 
+globus_result_t
+globus_l_gass_copy_verify_cksm(
+    globus_gass_copy_handle_t *         copy_handle,
+    globus_gass_copy_attr_t *           cksm_attr,
+    char *                              url);
 
 /* uncomment this line for debug messages */
 /* #define GLOBUS_I_GASS_COPY_DEBUG */
@@ -319,20 +331,22 @@ globus_gass_copy_handle_init(
             return result;
 
         handle->external_third_party = GLOBUS_FALSE;
-	handle->no_third_party_transfers = GLOBUS_FALSE;
-	handle->state = GLOBUS_NULL;
-	handle->performance = GLOBUS_NULL;
-	handle->status = GLOBUS_GASS_COPY_STATUS_NONE;
-	handle->buffer_length = 1024*1024;
-	handle->user_pointer = GLOBUS_NULL;
-	handle->err = GLOBUS_NULL;
-	handle->user_cancel_callback = GLOBUS_NULL;
-	handle->partial_offset = -1;
-	handle->partial_end_offset = -1;
+        handle->no_third_party_transfers = GLOBUS_FALSE;
+        handle->performance = GLOBUS_NULL;
+        handle->buffer_length = 1024*1024;
+        handle->user_pointer = GLOBUS_NULL;
+        handle->err = GLOBUS_NULL;
+        handle->user_cancel_callback = GLOBUS_NULL;
+        handle->partial_offset = -1;
+        handle->partial_end_offset = -1;
         handle->partial_bytes_remaining = -1;
         handle->send_allo = GLOBUS_FALSE;
         handle->always_stat_on_expand = GLOBUS_FALSE;
-	return GLOBUS_SUCCESS;
+        /* Initialize the state for this handle */
+        handle->state = GLOBUS_NULL;
+        result = globus_i_gass_copy_state_new(handle);
+        handle->status = GLOBUS_GASS_COPY_STATUS_NONE;
+        return result;
     }
     else
     {
@@ -394,7 +408,7 @@ globus_gass_copy_handle_destroy(
             globus_free(handle->performance);
             handle->performance = GLOBUS_NULL;
         }
-
+        
         if(handle->state)
         {
             globus_l_gass_copy_state_free(handle->state);
@@ -615,8 +629,10 @@ globus_gass_copy_set_no_third_party_transfers(
 	return globus_error_put(err);
       }
       else
+      {
 	handle->no_third_party_transfers = no_third_party_transfers;
 	return GLOBUS_SUCCESS;
+      }
     }
     else
     {
@@ -701,6 +717,70 @@ globus_gass_copy_set_stat_on_expand(
     
     return GLOBUS_SUCCESS;
 }
+
+/**
+ * @brief Stores the checksum algorithm to use with all 
+ *        checksum operations.
+ * @ingroup globus_gass_copy
+ * @details
+ * This function sets the checksum algorithm and the handle 
+ * to be used for checksum calculations to the passed in handle.
+ * 
+ * @param handle
+ *      This is the handle to which the checksum algorithm and 
+ *      handle are set.
+ * @param algo
+ *      This is the algorithm to set in the handle.
+ * @param cksm_handle
+ *      This is the handle that is used for performing checksum
+ *      operations that will be set in the handle.
+ * @return
+ *      This function always returns GLOBUS_SUCCESS
+ */
+globus_result_t 
+globus_gass_copy_set_checksum_algo(
+    globus_gass_copy_handle_t *         handle,
+    char                      *         algo,
+    globus_gass_copy_handle_t *         cksm_handle)
+{
+    if(handle->state->algorithm)
+    {
+        globus_free(handle->state->algorithm);
+    }
+    handle->state->algorithm = globus_libc_strdup(algo);
+    handle->state->cksm_handle = cksm_handle;
+
+    return GLOBUS_SUCCESS;
+}
+
+/**
+ * @brief Copies the checksum to the handle's checksum parameter.
+ * @ingroup globus_gass_copy
+ * @details
+ * This function frees any existing checksum value stored in the 
+ * handle, then copies the passed in checksum to the handle.
+ * 
+ * @param handle
+ *      The handle to the object to which the checksum shall be set. 
+ * @param cksm
+ *      The checksum string to be set to the handle.
+ * @return
+ *      This function always returns GLOBUS_SUCCESS
+ */
+globus_result_t 
+globus_gass_copy_set_checksum(
+    globus_gass_copy_handle_t *         handle, 
+    char                      *         cksm)
+{
+    if(handle->state->checksum != GLOBUS_NULL)
+    {
+        globus_free(handle->state->checksum);
+    }
+    handle->state->checksum = globus_libc_strdup(cksm);
+
+    return GLOBUS_SUCCESS;
+}
+
 
 /**
  * @brief Set partial file offsets
@@ -2133,6 +2213,8 @@ globus_l_gass_copy_target_destroy(
     default:
         break;
     }
+    memset(target, 0, sizeof(globus_i_gass_copy_target_t));
+    
     return GLOBUS_SUCCESS;
 } /* gloubs_l_gass_copy_target_destroy() */
 
@@ -2145,35 +2227,39 @@ globus_i_gass_copy_state_new(
 {
     globus_object_t * err;
     static char * myname="globus_i_gass_copy_state_new";
-
-    globus_gass_copy_state_t ** tmp_state = &(handle->state);
-    *tmp_state = (globus_gass_copy_state_t *)
-	globus_libc_malloc(sizeof(globus_gass_copy_state_t));
-
-    if(tmp_state == GLOBUS_NULL)
+    if(handle->state == NULL)
     {
-	handle->status = GLOBUS_GASS_COPY_STATUS_FAILURE;
-	err = globus_error_construct_string(
-	    GLOBUS_GASS_COPY_MODULE,
-	    GLOBUS_NULL,
-	    "[%s]: failed to malloc a globus_gass_copy_state_t successfully",
-	    myname);
+        globus_gass_copy_state_t ** tmp_state = &(handle->state);
+        *tmp_state = (globus_gass_copy_state_t *)
+            globus_libc_calloc(1, sizeof(globus_gass_copy_state_t));
 
-	return globus_error_put(err);
+        if(tmp_state == GLOBUS_NULL)
+        {
+            handle->status = GLOBUS_GASS_COPY_STATUS_FAILURE;
+            err = globus_error_construct_string(
+                GLOBUS_GASS_COPY_MODULE,
+                GLOBUS_NULL,
+                "[%s]: failed to malloc a globus_gass_copy_state_t successfully",
+                myname);
+
+            return globus_error_put(err);
+        }
+
+        /* initialize the monitor */
+        globus_mutex_init(&((*tmp_state)->monitor.mutex), GLOBUS_NULL);
+        globus_cond_init(&((*tmp_state)->monitor.cond), GLOBUS_NULL);
+        globus_mutex_init(&((*tmp_state)->mutex), GLOBUS_NULL);
     }
+    else
+    {
+        handle->state->active = GLOBUS_TRUE;
+    }
+    handle->state->monitor.done = GLOBUS_FALSE;
+    handle->state->monitor.err = GLOBUS_NULL;
+    handle->state->monitor.use_err = GLOBUS_FALSE;
 
     handle->status = GLOBUS_GASS_COPY_STATUS_INITIAL;
     handle->err = GLOBUS_SUCCESS;
-
-    /* initialize the monitor */
-    globus_mutex_init(&((*tmp_state)->monitor.mutex), GLOBUS_NULL);
-    globus_cond_init(&((*tmp_state)->monitor.cond), GLOBUS_NULL);
-    (*tmp_state)->monitor.done = GLOBUS_FALSE;
-
-    (*tmp_state)->monitor.err = GLOBUS_NULL;
-    (*tmp_state)->monitor.use_err = GLOBUS_FALSE;
-
-    globus_mutex_init(&((*tmp_state)->mutex), GLOBUS_NULL);
 
     return GLOBUS_SUCCESS;
 } /* globus_i_gass_copy_state_new() */
@@ -2199,11 +2285,8 @@ globus_l_gass_copy_state_free(
 
     globus_mutex_destroy(&(state->mutex));
 
-    /* clean  up the source target */
-    globus_l_gass_copy_target_destroy(&(state->source));
-
-    /* clean  up the destination target */
-    globus_l_gass_copy_target_destroy(&(state->dest));
+    globus_free(state->checksum);
+    globus_free(state->algorithm);
 
     /* free up the state */
 
@@ -2212,6 +2295,30 @@ globus_l_gass_copy_state_free(
     return GLOBUS_SUCCESS;
 
 } /* globus_l_gass_copy_state_free() */
+
+/**
+ * free state targets structure
+ */
+globus_result_t
+globus_l_gass_copy_state_free_targets(
+    globus_gass_copy_state_t * state)
+{
+    if(!state)
+    {
+        return GLOBUS_SUCCESS;
+    }
+
+    state->active = GLOBUS_FALSE;
+
+    /* clean  up the source target */
+    globus_l_gass_copy_target_destroy(&(state->source));
+
+    /* clean  up the destination target */
+    globus_l_gass_copy_target_destroy(&(state->dest));
+    
+    return GLOBUS_SUCCESS;
+
+} /* globus_l_gass_copy_state_free_targets() */
 
 /**
  * @brief Start the transfer
@@ -2798,6 +2905,7 @@ globus_l_gass_copy_register_read(
 
 	break;
     case GLOBUS_GASS_COPY_URL_MODE_UNSUPPORTED:
+    default:
 	result = globus_error_put(globus_error_construct_string(
 	    GLOBUS_GASS_COPY_MODULE,
 	    GLOBUS_NULL,
@@ -3316,6 +3424,7 @@ globus_l_gass_copy_ftp_transfer_callback(
     globus_object_t *		       error)
 {
     globus_object_t * err = GLOBUS_NULL;
+    globus_result_t   result;
 
     globus_gass_copy_handle_t * copy_handle
 	= (globus_gass_copy_handle_t *) user_arg;
@@ -3348,17 +3457,7 @@ globus_l_gass_copy_ftp_transfer_callback(
 #endif
     }
 
-    globus_l_gass_copy_state_free(copy_handle->state);
-    copy_handle->state = GLOBUS_NULL;
-
-    if(copy_handle->performance)
-    {
-        globus_l_gass_copy_perf_cancel_ftp_callback(copy_handle->performance);
-    }
-
 #ifdef GLOBUS_I_GASS_COPY_DEBUG
-    if(copy_handle->state == GLOBUS_NULL)
-	globus_libc_fprintf(stderr, "copy_handle->state == GLOBUS_NULL\n");
     globus_libc_fprintf(stderr, "ftp_transfer_callback(): about to call user callback\n");
 #endif
 
@@ -3381,6 +3480,26 @@ globus_l_gass_copy_ftp_transfer_callback(
 	  break;
     }
 
+    /* checksum verify */
+    if(copy_handle->status == GLOBUS_GASS_COPY_STATUS_DONE_SUCCESS && err == GLOBUS_NULL && 
+       copy_handle->state->cksm_handle != GLOBUS_NULL && copy_handle->state->checksum != GLOBUS_NULL)
+    {
+        globus_assert_string(copy_handle->state->dest.free_attr != GLOBUS_TRUE, "Checksum verification requires ftp attributes.");
+        result = globus_l_gass_copy_verify_cksm(
+            copy_handle, copy_handle->state->dest.attr, copy_handle->state->dest.url);
+        if(result != GLOBUS_SUCCESS) 
+        {
+            err = globus_error_get(result);
+            copy_handle->status = GLOBUS_GASS_COPY_STATUS_DONE_FAILURE;
+        }
+    }
+
+    globus_l_gass_copy_state_free_targets(copy_handle->state);
+
+    if(copy_handle->performance)
+    {
+        globus_l_gass_copy_perf_cancel_ftp_callback(copy_handle->performance);
+    }
 
     if(copy_handle->user_callback != GLOBUS_NULL)
 	copy_handle->user_callback(
@@ -3452,7 +3571,7 @@ globus_l_gass_copy_ftp_get_done_callback(
             globus_l_gass_copy_generic_cancel(cancel_info);
             globus_libc_free(cancel_info);
         }
-        else if(copy_handle->state)
+        else if(copy_handle->state->active)
         {
             globus_l_gass_copy_write_from_queue(copy_handle);
         }
@@ -3518,7 +3637,7 @@ globus_l_gass_copy_ftp_put_done_callback(
             globus_l_gass_copy_generic_cancel(cancel_info);
             globus_libc_free(cancel_info);
         }
-        else if(copy_handle->state)
+        else if(copy_handle->state->active)
         {
             globus_l_gass_copy_write_from_queue(copy_handle);
         }
@@ -3645,7 +3764,7 @@ globus_l_gass_copy_generic_read_callback(
     }
     
     /* start the next write if there isn't already one outstanding */
-    if(handle->state)
+    if(handle->state->active)
 	globus_l_gass_copy_write_from_queue(handle);
 #ifdef GLOBUS_I_GASS_COPY_DEBUG
     else
@@ -3654,7 +3773,7 @@ globus_l_gass_copy_generic_read_callback(
 #endif
 
     /* if we haven't read everything from the source, read again */
-    if(handle->state)
+    if(handle->state->active)
 	globus_l_gass_copy_read_from_queue(handle);
 #ifdef GLOBUS_I_GASS_COPY_DEBUG
     else
@@ -4012,7 +4131,7 @@ globus_l_gass_copy_generic_write_callback(
     globus_libc_fprintf(stderr,
         "generic_write_callback(): calling read_from_queue()\n");
 #endif
-    if(handle->state)
+    if(handle->state->active)
 	globus_l_gass_copy_read_from_queue(handle);
 #ifdef GLOBUS_I_GASS_COPY_DEBUG
     else
@@ -4025,7 +4144,7 @@ globus_l_gass_copy_generic_write_callback(
     globus_libc_fprintf(stderr,
         "generic_write_callback(): calling write_from_queue()\n");
 #endif
-    if(handle->state)
+    if(handle->state->active)
 	globus_l_gass_copy_write_from_queue(handle);
 #ifdef GLOBUS_I_GASS_COPY_DEBUG
     else
@@ -4034,6 +4153,193 @@ globus_l_gass_copy_generic_write_callback(
 #endif
 
 } /* globus_l_gass_copy_generic_write_callback() */
+
+typedef struct
+{
+    globus_mutex_t                      mutex;
+    globus_cond_t                       cond;
+    globus_object_t *                   err;
+    globus_bool_t                       use_err;
+    globus_bool_t                       transfer_timeout;
+    int                                 was_error;
+    volatile globus_bool_t              done;
+} globus_l_gass_monitor_t;
+
+typedef struct
+{
+    globus_gass_copy_handle_t *         handle;
+    globus_bool_t                       source;
+    char *                              url;
+    char *                              checksum;
+    globus_bool_t                       done;
+    globus_object_t *                   error;
+    globus_l_gass_monitor_t *           monitor;
+} globus_l_gass_cksm_info_t;
+
+
+/**
+ * @brief Callback function for calls to globus_gass_copy_cksm_async()
+ * @ingroup globus_gass_copy
+ * @details
+ * @param callback_arg
+ *        Paramter expected to contain a globus_l_gass_cksm_info_t updated by 
+ *        globus_gass_copy_cksm_async().
+ * @param handle
+ *        Unused handle to globus_gass_copy_handle_t
+ * @param error
+ *        Indicates an error from globus_gass_copy_cksm_async(), will be NULL if 
+ *        no error occured.
+ *
+ * @return
+ *         This function does not directly return a value, however it does 
+ *         signal the calling function to indicate the asynchronous checksum 
+ *         has completed.  This signifies that the checksum is accessable 
+ *         through the "checksum" member (or it's NULL if there was an error)
+ * @see globus_gass_copy_cksm_async()
+ */
+static 
+void
+globus_l_gass_cksm_cb(
+    void *                              callback_arg,
+    globus_gass_copy_handle_t *         handle,
+    globus_object_t *                   error)
+{    
+    globus_l_gass_cksm_info_t *          cksm_info;
+    cksm_info = (globus_l_gass_cksm_info_t *) callback_arg;
+
+#ifdef GLOBUS_I_GASS_COPY_DEBUG
+    globus_libc_fprintf(stderr,"%s: %s() callback_arg %p\n\n", 
+                        __FILE__, __func__, callback_arg);
+#endif
+    if(error)
+    {
+        globus_free(cksm_info->checksum);
+        cksm_info->checksum = GLOBUS_NULL;
+        cksm_info->error = globus_object_copy(error);
+    }
+    globus_mutex_lock(&cksm_info->monitor->mutex);
+    {
+        cksm_info->done = GLOBUS_TRUE;
+        globus_cond_signal(&cksm_info->monitor->cond);
+    }
+    globus_mutex_unlock(&cksm_info->monitor->mutex);   
+#ifdef GLOBUS_I_GASS_COPY_DEBUG
+    globus_libc_fprintf(stderr,"\n\n%s: %s() checksum is %s\n\n", __FILE__, __func__, cksm_info->urlinfo->checksum);
+#endif
+}
+
+
+/**
+ * @brief This function verifies the source file's checksum matches the destination
+ *        file's checksum after a transfer.
+ * @ingroup globus_gass_copy
+ * @details
+ * @param copy_handle
+ *        The handle used to perform access the file for the checksum operation.
+ * @param cksm_attr
+ *        Attributes describing the connection used to access the file for the 
+ *        checksum operation.
+ * @param url
+ *        The URL to the destination file to be checksummed.
+ *
+ * @return
+ *         This function returns GLOBUS_SUCCESS if the checksum on the source 
+ *         and destination files match, or a result pointing to an
+ *         object of one of the the following error types:
+ * @retval GLOBUS_GASS_COPY_ERROR_TYPE_NULL_PARAMETER
+ *         The checksum on the source and destination files did not match.
+ * @retval The value returned from the call to globus_gass_copy_cksm_async().
+ *
+ * @see globus_gass_copy_url_to_handle() globus_gass_copy_handle_to_url()
+ */
+static 
+globus_result_t
+globus_l_gass_copy_verify_cksm(
+    globus_gass_copy_handle_t *         copy_handle,
+    globus_gass_copy_attr_t *           cksm_attr,
+    char *                              url)
+{
+    globus_result_t                 result = GLOBUS_SUCCESS;
+    globus_l_gass_cksm_info_t       dst_cksm_info;
+    globus_l_gass_monitor_t         cksm_monitor;
+    globus_ftp_client_handle_t      real_ftp_handle;
+    globus_ftp_client_handle_t      cksm_ftp_handle;
+
+#ifdef GLOBUS_I_GASS_COPY_DEBUG
+    globus_libc_fprintf(stderr,"%s(): called\n",__func__);
+#endif
+
+    globus_gass_copy_get_ftp_handle(
+        copy_handle, &real_ftp_handle);
+    globus_gass_copy_get_ftp_handle(
+        copy_handle->state->cksm_handle, &cksm_ftp_handle);
+    globus_ftp_client_handle_borrow_connection(
+        &real_ftp_handle, GLOBUS_FALSE, &cksm_ftp_handle, GLOBUS_TRUE);
+
+    globus_mutex_init(&cksm_monitor.mutex, NULL);
+    globus_cond_init(&cksm_monitor.cond, NULL);
+    cksm_monitor.done = GLOBUS_FALSE;
+    cksm_monitor.err = GLOBUS_NULL;
+    cksm_monitor.use_err = GLOBUS_FALSE;
+
+    dst_cksm_info.url = url;
+    dst_cksm_info.checksum = globus_calloc(1, EVP_MAX_MD_SIZE * 2 + 1);
+    dst_cksm_info.done = GLOBUS_FALSE;
+    dst_cksm_info.monitor = &cksm_monitor;
+    dst_cksm_info.error = NULL;
+
+    result = globus_gass_copy_cksm_async(
+        copy_handle->state->cksm_handle,
+        dst_cksm_info.url,
+        cksm_attr,
+        0,
+        -1,
+        copy_handle->state->algorithm,
+        dst_cksm_info.checksum,
+        globus_l_gass_cksm_cb,
+        &dst_cksm_info);
+
+    if (result == GLOBUS_SUCCESS)
+    {
+        globus_mutex_lock(&cksm_monitor.mutex);
+        while(!dst_cksm_info.done)
+        {
+	    globus_cond_wait(&cksm_monitor.cond, &cksm_monitor.mutex);
+        }
+        globus_mutex_unlock(&cksm_monitor.mutex);
+    
+        if(dst_cksm_info.error)
+        {
+            result = globus_error_put(dst_cksm_info.error);
+        }
+        else
+        {
+#ifdef GLOBUS_I_GASS_COPY_DEBUG
+            globus_libc_fprintf(stderr,"%s() verifying checksum for %s:\n"
+                                "\tsource      '%s'\n"
+                                "\tdestination '%s'\n",__func__, dest_urlinfo->url,
+                                copy_handle->state->checksum, dest_urlinfo->checksum);
+#endif
+            if (copy_handle->state->checksum != GLOBUS_NULL && dst_cksm_info.checksum != GLOBUS_NULL &&
+                strcmp(copy_handle->state->checksum, dst_cksm_info.checksum) != 0)
+            {
+                result = globus_error_put(globus_error_construct_string(
+                        GLOBUS_GASS_COPY_MODULE,
+                        GLOBUS_NULL,
+                        "[%s]: checksum verification failure for '%s':\n\tgot '%s',\n\texpected '%s'",
+                        __func__, dst_cksm_info.url, dst_cksm_info.checksum, copy_handle->state->checksum));
+            }
+        }
+    }
+
+    globus_ftp_client_handle_borrow_connection(
+        &cksm_ftp_handle, GLOBUS_TRUE, &real_ftp_handle, GLOBUS_FALSE);
+
+    if(dst_cksm_info.checksum != GLOBUS_NULL)
+        globus_free(dst_cksm_info.checksum);
+
+    return(result);
+}
 
 void
 globus_l_gass_copy_write_from_queue(
@@ -4134,7 +4440,7 @@ globus_l_gass_copy_write_from_queue(
 /* if there are no writes to do, and no writes pending, clean up and call
  * user's callback
  */
-    if(handle->state)
+    if(handle->state->active)
     {
         globus_mutex_lock(&state->mutex);
         
@@ -4169,7 +4475,7 @@ globus_l_gass_copy_write_from_queue(
             }
     
     #ifdef GLOBUS_I_GASS_COPY_DEBUG
-            if(handle->state == GLOBUS_NULL)
+            if(!handle->state->active)
                 globus_libc_fprintf(stderr, "  handle->state == GLOBUS_NULL\n");
             globus_libc_fprintf(stderr,
                 "write_from_queue(): about to call user callback\n");
@@ -4192,14 +4498,27 @@ globus_l_gass_copy_write_from_queue(
             default:
 	      break;
             }
-            
+
+            /* checksum verify */
+            if(handle->status == GLOBUS_GASS_COPY_STATUS_DONE_SUCCESS && err == GLOBUS_NULL && 
+               handle->state->cksm_handle != GLOBUS_NULL && handle->state->checksum != GLOBUS_NULL)
+            {
+                globus_assert_string(state->dest.free_attr != GLOBUS_TRUE, "Checksum verification requires ftp attributes.");
+                result = globus_l_gass_copy_verify_cksm(
+                    handle, state->dest.attr, state->dest.url);
+                if(result != GLOBUS_SUCCESS) 
+                {
+                    err = globus_error_get(result);
+                    handle->status = GLOBUS_GASS_COPY_STATUS_DONE_FAILURE;
+                }
+            }
+
             callback = handle->user_callback;
             handle->user_callback = GLOBUS_NULL;
-            handle->state = GLOBUS_NULL;
-            
+
             globus_mutex_unlock(&state->mutex);
-            
-            globus_l_gass_copy_state_free(state);
+
+            globus_l_gass_copy_state_free_targets(state);
 
             if(callback != GLOBUS_NULL)
             {
@@ -4217,7 +4536,9 @@ globus_l_gass_copy_write_from_queue(
                 globus_object_free(err);
         } /* if both source and dest are GLOBUS_I_GASS_COPY_TARGET_DONE */
         else
+        {
             globus_mutex_unlock(&state->mutex);
+        }
     }
 #ifdef GLOBUS_I_GASS_COPY_DEBUG
     globus_libc_fprintf(stderr, "write_from_queue(): returning\n");
@@ -5173,7 +5494,7 @@ globus_gass_copy_register_url_to_url(
 	return globus_error_put(err);
     }
 
-    /* Initialize the state for this transfer */
+    /* reinitialize the state for this transfer */
     result = globus_i_gass_copy_state_new(handle);
     if(result != GLOBUS_SUCCESS) goto error_result_exit;
 
@@ -5385,10 +5706,9 @@ globus_gass_copy_register_url_to_url(
 	if (result != GLOBUS_SUCCESS)
 	{
 	    /* free the state */
-	    if(handle->state)
+	    if(handle->state->active)
 	    {
-		globus_l_gass_copy_state_free(handle->state);
-		handle->state = GLOBUS_NULL;
+		globus_l_gass_copy_state_free_targets(handle->state);
 	    }
 	    goto error_result_exit;
 	}
@@ -5517,7 +5837,7 @@ globus_gass_copy_register_url_to_handle(
 	return globus_error_put(err);
     }
 
-    /* Initialize the state for this transfer */
+    /* reinitialize the state for this transfer */
     result = globus_i_gass_copy_state_new(handle);
     if(result != GLOBUS_SUCCESS) goto error_result_exit;
 
@@ -5675,7 +5995,7 @@ globus_gass_copy_register_handle_to_url(
 	return globus_error_put(err);
     }
 
-    /* Initialize the state for this transfer */
+    /* reinitialize the state for this transfer */
     result = globus_i_gass_copy_state_new(handle);
     if(result != GLOBUS_SUCCESS) goto error_result_exit;
 
@@ -5976,7 +6296,7 @@ globus_gass_copy_cancel(
         return globus_error_put(err);
     }
 
-    if(!handle->state)
+    if(!handle->state->active)
     {
         err = globus_error_construct_string(
              GLOBUS_GASS_COPY_MODULE,
@@ -6046,7 +6366,7 @@ globus_gass_copy_cancel(
 	   handle->state->source.status != GLOBUS_I_GASS_COPY_TARGET_INITIAL)
 	    source_result = globus_l_gass_copy_target_cancel(source_cancel_info);
 
-        if (handle->state != GLOBUS_NULL)
+        if (handle->state->active)
         {
             if(handle->state->dest.status != GLOBUS_I_GASS_COPY_TARGET_DONE &&
                handle->state->dest.status != GLOBUS_I_GASS_COPY_TARGET_INITIAL)
@@ -6318,7 +6638,6 @@ globus_l_gass_copy_generic_cancel(
         handle->user_callback = GLOBUS_NULL;
         handle->user_cancel_callback = GLOBUS_NULL;
         state = handle->state;
-        handle->state = GLOBUS_NULL;
     }
     else
     {
@@ -6332,7 +6651,7 @@ globus_l_gass_copy_generic_cancel(
 
     if (all_done)
     {
-	globus_l_gass_copy_state_free(state);
+	globus_l_gass_copy_state_free_targets(state);
 
 #ifdef GLOBUS_I_GASS_COPY_DEBUG
 	globus_libc_fprintf(stderr, "globus_l_gass_copy_generic_cancel():\n");

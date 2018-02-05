@@ -1,16 +1,38 @@
 Name: udt
 Version: 4.11
-Release: 3g2
+Release: 3g7%{?dist}
 Vendor:	Globus Support
 Summary: UDP-based Data Transfer
 
 Group:   Development/Libraries
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+License: BSD-3-Clause
+%else
 License: BSD
+%endif
 URL:     http://udt.sourceforge.net/
 Source:  http://sourceforge.net/projects/udt/files/udt/%{version}/udt.sdk.%{version}.tar.gz
 
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: gcc-c++
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global mainpkg libudt
+%global nmainpkg -n %{mainpkg}
+%else
+%global mainpkg %{name}
+%endif
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%package %{nmainpkg}
+Group:   Development/Libraries
+Summary: UDP-based Data Transfer
+
+%description %{nmainpkg}
+UDT is a reliable UDP based application level 
+data transport protocol for distributed data 
+intensive applications over wide area high-speed networks.
+%endif
 
 %description
 UDT is a reliable UDP based application level 
@@ -20,9 +42,12 @@ intensive applications over wide area high-speed networks.
 %package devel
 Summary: UDT - Development headers
 Group: Development/Libraries
+Requires:	%{mainpkg}%{?_isa} = %{version}-%{release}
 
 %description devel
-%{summary}
+UDT is a reliable UDP based application level 
+data transport protocol for distributed data 
+intensive applications over wide area high-speed networks.
 
 %prep
 %setup -q -n udt4
@@ -46,20 +71,16 @@ install -m 0644 src/udt.h $RPM_BUILD_ROOT%{_includedir}/udt.h
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%pre
-
-%post
+%post %{?nmainpkg}
 
 [ -x "/sbin/ldconfig" ] && /sbin/ldconfig
 
-%preun
-
-%postun
+%postun %{?nmainpkg}
 
 [ -x "/sbin/ldconfig" ] && /sbin/ldconfig
 
 
-%files
+%files %{?nmainpkg}
 %defattr(-,root,root,-)
 %{_libdir}/libudt.so
 
@@ -68,6 +89,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_includedir}/udt.h
 
 %changelog
+* Thu Aug 25 2016 Globus Toolkit <support@globus.org> - 4.11-3g7
+- Updates for SLES 12
+
 * Wed May 26 2013 Globus Toolkit <support@globus.org> - 4.11-1
 - Upstream update
 

@@ -1,30 +1,22 @@
 Name:		globus-gssapi-gsi
+%global soname 4
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global apache_license Apache-2.0
+%else
+%global apache_license ASL 2.0
+%endif
 %global _name %(tr - _ <<< %{name})
-Version:	12.1
+Version:	13.5
 Release:	1%{?dist}
 Vendor:	Globus Support
 Summary:	Globus Toolkit - GSSAPI library
 
 Group:		System Environment/Libraries
-License:	ASL 2.0
+License:	%{apache_license}
 URL:		http://toolkit.globus.org/
 Source:	http://toolkit.globus.org/ftppub/gt6/packages/%{_name}-%{version}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
-Requires:	globus-gsi-credential%{?_isa} >= 5
-Requires:	globus-gsi-callback%{?_isa} >= 4
-Requires:	globus-openssl-module%{?_isa} >= 3
-Requires:	globus-gsi-openssl-error%{?_isa} >= 2
-Requires:	globus-gsi-proxy-core%{?_isa} >= 6
-Requires:	globus-gsi-cert-utils%{?_isa} >= 8
-Requires:	globus-common%{?_isa} >= 14
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
-Requires:	openssl
-Requires:	openssl-libs%{?_isa}
-%endif
-%if %{?fedora}%{!?fedora:0} < 19 && %{?rhel}%{!?rhel:0} < 7
-Requires:	openssl%{?_isa}
-%endif
 
 BuildRequires:	globus-gsi-credential-devel >= 5
 BuildRequires:	globus-gsi-callback-devel >= 4
@@ -33,13 +25,10 @@ BuildRequires:	globus-gsi-openssl-error-devel >= 2
 BuildRequires:	globus-gsi-proxy-core-devel >= 6
 BuildRequires:	globus-gsi-cert-utils-devel >= 8
 BuildRequires:	globus-common-devel >= 14
-BuildRequires:	globus-gsi-sysconfig-devel >= 5
+BuildRequires:	globus-gsi-sysconfig-devel >= 8
 BuildRequires:	doxygen
 BuildRequires:	graphviz
-%if "%{?rhel}" == "5"
-BuildRequires:	graphviz-gd
-%endif
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 BuildRequires:	automake >= 1.11
 BuildRequires:	autoconf >= 2.60
 BuildRequires:	libtool >= 2.2
@@ -48,17 +37,38 @@ BuildRequires:  pkgconfig
 %if %{?fedora}%{!?fedora:0} >= 18 || %{?rhel}%{!?rhel:0} >= 6
 BuildRequires:  perl-Test-Simple
 %endif
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
 BuildRequires:  openssl
+BuildRequires:  libopenssl-devel
+%else
+BuildRequires:  openssl
+BuildRequires:  openssl-devel
+%endif
+
 %if 0%{?suse_version} > 0
 BuildRequires: libtool
 %else
 BuildRequires: libtool-ltdl-devel
 %endif
 
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global mainpkg lib%{_name}%{soname}
+%global nmainpkg -n %{mainpkg}
+%else
+%global mainpkg %{name}
+%endif
+
+%if %{?nmainpkg:1}%{!?nmainpkg:0} != 0
+%package %{?nmainpkg}
+Summary:	Globus Toolkit - GSSAPI library
+Group:		System Environment/Libraries
+%endif
+
 %package devel
 Summary:	Globus Toolkit - GSSAPI library Development Files
 Group:		Development/Libraries
-Requires:	%{name}%{?_isa} = %{version}-%{release}
+Requires:	%{mainpkg}%{?_isa} = %{version}-%{release}
 Requires:	globus-gsi-credential-devel%{?_isa} >= 5
 Requires:	globus-gsi-callback-devel%{?_isa} >= 4
 Requires:	globus-openssl-module-devel%{?_isa} >= 3
@@ -73,7 +83,18 @@ Group:		Documentation
 %if %{?fedora}%{!?fedora:0} >= 10 || %{?rhel}%{!?rhel:0} >= 6
 BuildArch:	noarch
 %endif
-Requires:	%{name} = %{version}-%{release}
+Requires:	%{mainpkg} = %{version}-%{release}
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%description %{?nmainpkg}
+The Globus Toolkit is an open source software toolkit used for building Grid
+systems and applications. It is being developed by the Globus Alliance and
+many others all over the world. A growing number of projects and companies are
+using the Globus Toolkit to unlock the potential of grids for their cause.
+
+The %{mainpkg} package contains:
+GSSAPI library
+%endif
 
 %description
 The Globus Toolkit is an open source software toolkit used for building Grid
@@ -106,13 +127,12 @@ GSSAPI library Documentation Files
 %setup -q -n %{_name}-%{version}
 
 %build
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 # Remove files that should be replaced during bootstrap
 rm -rf autom4te.cache
 
 autoreconf -if
 %endif
-
 
 %configure \
            --disable-static \
@@ -135,11 +155,11 @@ make %{?_smp_mflags} check
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%post -p /sbin/ldconfig
+%post %{?nmainpkg} -p /sbin/ldconfig
 
-%postun -p /sbin/ldconfig
+%postun %{?nmainpkg} -p /sbin/ldconfig
 
-%files
+%files %{?nmainpkg}
 %defattr(-,root,root,-)
 %dir %{_docdir}/%{name}-%{version}
 %doc %{_docdir}/%{name}-%{version}/GLOBUS_LICENSE
@@ -159,6 +179,80 @@ rm -rf $RPM_BUILD_ROOT
 %{_mandir}/man3/*
 
 %changelog
+* Thu Jan 25 2018 Globus Toolkit <support@globus.org> - 13.5-1
+- don't check uid on win
+
+* Wed Nov 01 2017 Globus Toolkit <support@globus.org> - 13.4-1
+- Improve vhost support
+
+* Mon Oct 30 2017 Globus Toolkit <support@globus.org> - 13.3-1
+- Allow configuration of non-root user to own credentials for root services
+
+* Thu Sep 28 2017 Globus Toolkit <support@globus.org> - 13.2-1
+- Fix make clean rule (pull #114)
+- Fix alpn mismatch test
+
+* Tue Sep 12 2017 Globus Toolkit <support@globus.org> - 13.1-1
+- use X509_VHOST_CRED_DIR if set when accepting
+- fix race condition
+
+* Tue Sep 05 2017 Globus Toolkit <support@globus.org> - 13.0-1
+- Add SNI vhost cred dir support
+- Add optional ALPN processing
+
+* Wed Jun 21 2017 Globus Toolkit <support@globus.org> - 12.17-1
+- Fix indicate_mechs_test when using openssl v1.1.0
+- Remove rhel 5 spec file conditionals
+
+* Thu Apr 27 2017 Globus Toolkit <support@globus.org> - 12.16-1
+- Address test issues: fix .srl dependency, reuse credential
+  in thread test
+
+* Fri Apr 21 2017 Globus Toolkit <support@globus.org> - 12.15-1
+- Remove legacy SSLv3 support
+
+* Mon Mar 20 2017 Globus Toolkit <support@globus.org> - 12.14-1
+- Merge "Don't unlock unlocked mutex #91". Add Test case.
+
+* Mon Dec 19 2016 Globus Toolkit <support@globus.org> - 12.13-1
+- Skip mech v1 tests for OpenSSL >= 1.1.0
+
+* Tue Nov 08 2016 Globus Toolkit <support@globus.org> - 12.12-1
+- More updates for mech negotiation
+
+* Mon Oct 24 2016 Globus Toolkit <support@globus.org> - 12.11-1
+- Fix function arg mismatch
+
+* Fri Oct 21 2016 Globus Toolkit <support@globus.org> - 12.10-1
+- Add support for new mech oid for different MIC formats
+
+* Wed Sep 21 2016 Globus Toolkit <support@globus.org> - 12.9-1
+- Fix bad index references
+
+* Tue Sep 20 2016 Globus Toolkit <support@globus.org> - 12.8-1
+- Fix hash detection
+
+* Mon Sep 19 2016 Globus Toolkit <support@globus.org> - 12.7-1
+- Add backward compatibility fallback in verify_mic
+
+* Thu Sep 08 2016 Globus Toolkit <support@globus.org> - 12.6-1
+- Update for el.5 openssl101e
+
+* Tue Sep 06 2016 Globus Toolkit <support@globus.org> - 12.5-1
+- More tweaks to get_mic/verify_mic for 1.0.1
+
+* Tue Sep 06 2016 Globus Toolkit <support@globus.org> - 12.4-1
+- Updates for mic handling without using internal openssl structs
+
+* Thu Aug 25 2016 Globus Toolkit <support@globus.org> - 12.3-3
+- Updates for SLES 12
+
+* Thu Aug 18 2016 Globus Toolkit <support@globus.org> - 12.3-1
+- Makefile fix
+
+* Tue Aug 16 2016 Globus Toolkit <support@globus.org> - 12.2-1
+- Updates for OpenSSL 1.1.0
+
 * Tue May 03 2016 Globus Toolkit <support@globus.org> - 12.1-1
 - Spelling
 
@@ -285,7 +379,7 @@ rm -rf $RPM_BUILD_ROOT
 - openssl-libs for newer fedora
 
 * Wed Jun 26 2013 Globus Toolkit <support@globus.org> - 10.8-2
-- GT-424: New Fedora Packaging Guideline - no %_isa in BuildRequires
+- GT-424: New Fedora Packaging Guideline - no %%_isa in BuildRequires
 
 * Fri Feb 22 2013 Globus Toolkit <support@globus.org> - 10.8-1
 - GT-363: gss_get_mic/gss_verify_mic fail for some TLS ciphers with OpenSSL 1.0.1

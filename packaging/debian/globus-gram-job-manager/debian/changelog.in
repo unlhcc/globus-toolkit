@@ -1,3 +1,57 @@
+globus-gram-job-manager (14.36-1+gt6.@distro@) @distro@; urgency=low
+
+  * Default to running personal gatekeeper on an ephemeral port
+
+ -- Globus Toolkit <support@globus.org>  Tue, 25 Apr 2017 17:05:46 -0400
+
+globus-gram-job-manager (14.35-1+gt6.@distro@) @distro@; urgency=low
+
+  * Update for el.5 openssl101e
+
+ -- Globus Toolkit <support@globus.org>  Fri, 09 Sep 2016 16:42:38 -0400
+
+globus-gram-job-manager (14.34-1+gt6.@distro@) @distro@; urgency=low
+
+  * Updates to rebuild el.5 with openssl101e
+
+ -- Globus Toolkit <support@globus.org>  Fri, 09 Sep 2016 16:21:46 -0400
+
+globus-gram-job-manager (14.33-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix issue #71: globus-gram-job-manager test leaves process behind
+
+ -- Globus Toolkit <support@globus.org>  Tue, 06 Sep 2016 09:53:52 -0400
+
+globus-gram-job-manager (14.32-1+gt6.@distro@) @distro@; urgency=low
+
+  * Skip some tests as root
+
+ -- Globus Toolkit <support@globus.org>  Wed, 31 Aug 2016 09:40:14 -0400
+
+globus-gram-job-manager (14.31-1+gt6.@distro@) @distro@; urgency=low
+
+  * Set test case cache dir
+
+ -- Globus Toolkit <support@globus.org>  Tue, 30 Aug 2016 15:57:57 -0400
+
+globus-gram-job-manager (14.30-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix test problem in el5 mock with HOME=/builddir and root user
+
+ -- Globus Toolkit <support@globus.org>  Fri, 19 Aug 2016 17:06:40 -0400
+
+globus-gram-job-manager (14.29-1+gt6.@distro@) @distro@; urgency=low
+
+  * Makefile fix
+
+ -- Globus Toolkit <support@globus.org>  Thu, 18 Aug 2016 16:08:45 -0400
+
+globus-gram-job-manager (14.28-1+gt6.@distro@) @distro@; urgency=low
+
+  * Updates for OpenSSL 1.1.0
+
+ -- Globus Toolkit <support@globus.org>  Tue, 16 Aug 2016 15:43:01 -0400
+
 globus-gram-job-manager (14.27-2+gt6.@distro@) @distro@; urgency=low
 
   * Update XIO Driver package names

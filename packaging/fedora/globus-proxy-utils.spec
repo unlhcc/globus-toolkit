@@ -1,49 +1,38 @@
 Name:		globus-proxy-utils
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+%global apache_license Apache-2.0
+%else
+%global apache_license ASL 2.0
+%endif
 %global _name %(tr - _ <<< %{name})
-Version:	6.15
+Version:	6.19
 Release:	1%{?dist}
 Vendor:	Globus Support
 Summary:	Globus Toolkit - Globus GSI Proxy Utility Programs
 
 Group:		Applications/Internet
-License:	ASL 2.0
+License:	%{apache_license}
 URL:		http://toolkit.globus.org/
 Source:	http://toolkit.globus.org/ftppub/gt6/packages/%{_name}-%{version}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
-Requires:	openssl
-Requires:	openssl-libs%{?_isa}
+%if %{?rhel}%{!?rhel:0} == 5
+Requires:  openssl101e%{?_isa}
+%else
+Requires:  openssl%{?_isa}
 %endif
-%if %{?fedora}%{!?fedora:0} < 19 && %{?rhel}%{!?rhel:0} < 7
-Requires:	openssl%{?_isa}
-%endif
-Requires:	globus-gsi-proxy-ssl%{?_isa} >= 4
-Requires:	globus-gsi-credential%{?_isa} >= 5
-Requires:	globus-gsi-callback%{?_isa} >= 4
-Requires:	globus-openssl-module%{?_isa} >= 3
-Requires:	globus-gss-assist%{?_isa} >= 8
-Requires:	globus-gsi-openssl-error%{?_isa} >= 2
-Requires:	globus-gsi-proxy-core%{?_isa} >= 6
-Requires:	globus-gsi-cert-utils%{?_isa} >= 8
-Requires:	globus-common%{?_isa} >= 14
-Requires:	globus-gsi-sysconfig%{?_isa} >= 5
-Requires:	globus-gssapi-gsi%{?_isa} >= 4
 
-
-BuildRequires:	globus-gsi-proxy-ssl-devel >= 4
 BuildRequires:	globus-gsi-credential-devel >= 5
 BuildRequires:	globus-gsi-callback-devel >= 4
 BuildRequires:	globus-openssl-module-devel >= 3
 BuildRequires:	globus-gss-assist-devel >= 8
 BuildRequires:	globus-gsi-openssl-error-devel >= 2
-BuildRequires:	openssl-devel
 BuildRequires:	globus-gsi-proxy-core-devel >= 6
 BuildRequires:	globus-gsi-cert-utils-devel >= 8
 BuildRequires:	globus-common-devel >= 14
 BuildRequires:	globus-gsi-sysconfig-devel >= 5
-BuildRequires:	globus-gssapi-gsi >= 4
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+BuildRequires:	globus-gssapi-gsi-devel >= 4
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 BuildRequires:  automake >= 1.11
 BuildRequires:  autoconf >= 2.60
 BuildRequires:  libtool >= 2.2
@@ -52,6 +41,21 @@ BuildRequires:  pkgconfig
 %if %{?fedora}%{!?fedora:0} >= 18 || %{?rhel}%{!?rhel:0} >= 6
 BuildRequires:  perl-Test-Simple
 %endif
+
+%if %{?suse_version}%{!?suse_version:0} >= 1315
+BuildRequires:  openssl
+BuildRequires:  libopenssl-devel
+%else
+%if %{?rhel}%{!?rhel:0} == 5
+BuildRequires:  openssl101e
+BuildRequires:  openssl101e-devel
+BuildConflicts: openssl-devel
+%else
+BuildRequires:  openssl
+BuildRequires:  openssl-devel
+%endif
+%endif
+
 
 %description
 The Globus Toolkit is an open source software toolkit used for building Grid
@@ -67,13 +71,16 @@ Globus GSI Proxy Utility Programs
 
 %build
 # Remove files that should be replaced during bootstrap
-%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7
+%if %{?fedora}%{!?fedora:0} >= 19 || %{?rhel}%{!?rhel:0} >= 7 || %{?suse_version}%{!?suse_version:0} >= 1315
 # Remove files that should be replaced during bootstrap
 rm -rf autom4te.cache
 
 autoreconf -if
 %endif
 
+%if %{?rhel}%{!?rhel:0} == 5
+export OPENSSL="$(which openssl101e)"
+%endif
 
 %configure \
            --disable-static \
@@ -101,6 +108,21 @@ rm -rf $RPM_BUILD_ROOT
 %{_mandir}/man1/*
 
 %changelog
+* Fri Jan 06 2017 Globus Toolkit <support@globus.org> - 6.19-1
+- Fix RSA key checking
+
+* Thu Sep 08 2016 Globus Toolkit <support@globus.org> - 6.18-1
+- Update for el.5 openssl101e, replace docbook with asciidoc
+
+* Mon Aug 29 2016 Globus Toolkit <support@globus.org> - 6.17-3
+- Updates for SLES 12
+
+* Thu Aug 18 2016 Globus Toolkit <support@globus.org> - 6.17-1
+- Makefile fixes
+
+* Tue Aug 16 2016 Globus Toolkit <support@globus.org> - 6.16-1
+- Updates for OpenSSL 1.1.0
+
 * Mon Mar 14 2016 Globus Toolkit <support@globus.org> - 6.15-1
 - Updates for reverse lookups for backward compatibility checking
 

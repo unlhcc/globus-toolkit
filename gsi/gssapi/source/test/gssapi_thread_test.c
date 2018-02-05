@@ -24,6 +24,7 @@
 
 struct thread_arg
 {
+    gss_cred_id_t                       credential;
     gss_buffer_desc                     init_token;
     globus_bool_t                       init_token_ready;
     globus_bool_t                       init_done;
@@ -32,6 +33,7 @@ struct thread_arg
     globus_bool_t                       accept_done;
     globus_mutex_t                      mutex;
     globus_cond_t                       cond;
+    globus_bool_t                       failed;
 };
 
 static int                              client_thread_count = 0;
@@ -54,12 +56,9 @@ int
 main()
 {
     gss_cred_id_t                       credential;
-    struct thread_arg                   thread_args[NUM_CLIENTS] = {{0}};
+    struct thread_arg                   thread_args[NUM_CLIENTS] = {{.init_done=0}};
     globus_thread_t                     thread_handle;
     int                                 i;
-    int                                 ret;
-    int                                 error;
-    int                                 thread_num = 0;
 
     LTDL_SET_PRELOADED_SYMBOLS();
 
@@ -82,6 +81,7 @@ main()
     for(i=0;i<NUM_CLIENTS;i++)
     {
         thread_args[i] = (struct thread_arg) {
+            .credential = credential,
             .init_token = { 0 },
             .init_token_ready = GLOBUS_FALSE,
             .accept_token = { 0 },
@@ -138,24 +138,26 @@ server_func(
     void *                              arg)
 {
     struct thread_arg *                 thread_args = arg;
-    globus_bool_t                       authenticated;
     gss_ctx_id_t                        context = GSS_C_NO_CONTEXT;
     OM_uint32                           major_status, minor_status, ms;
-    gss_cred_id_t                       credential;
+    int                                 token = 0;
     
-    credential = globus_gsi_gssapi_test_acquire_credential();
     globus_mutex_lock(&thread_args->mutex);
     do
     {
-        while (!thread_args->accept_token_ready)
+        while ((!thread_args->accept_token_ready) && (!thread_args->failed))
         {
             globus_cond_wait(&thread_args->cond, &thread_args->mutex);
+        }
+        if (thread_args->failed)
+        {
+            break;
         }
         thread_args->accept_token_ready = GLOBUS_FALSE;
 
         major_status = gss_accept_sec_context(&minor_status,
                                               &context,
-                                              credential,
+                                              thread_args->credential,
                                               &thread_args->accept_token,
                                               GSS_C_NO_CHANNEL_BINDINGS,
                                               NULL,
@@ -179,8 +181,11 @@ server_func(
     
     if (major_status != GSS_S_COMPLETE)
     {
-	fprintf(stderr, "SERVER: Authentication failed: %s\n",
-		globus_error_print_friendly(globus_error_peek(minor_status)));
+        if (minor_status != GLOBUS_SUCCESS)
+        {
+            fprintf(stderr, "SERVER: Authentication failed: %s\n",
+                    globus_error_print_friendly(globus_error_peek(minor_status)));
+        }
     }
 
     globus_mutex_lock(&mutex);
@@ -203,15 +208,12 @@ client_func(
 {
     struct thread_arg *                 thread_args = arg;
     gss_ctx_id_t                        context_handle = GSS_C_NO_CONTEXT;
-    int                                 connect_fd;
-    int                                 result;
     int                                 failed = 0;
     OM_uint32                           major_status, minor_status, ms;
-    gss_cred_id_t                       credential;
     
-    credential = globus_gsi_gssapi_test_acquire_credential();
     for (int i = 0; i < ITERATIONS && !failed; i++)
     {
+        int token = 0;
         globus_mutex_lock(&thread_args->mutex);
         thread_args->init_done = GLOBUS_FALSE;
         thread_args->init_token = (gss_buffer_desc) {0};
@@ -219,6 +221,7 @@ client_func(
         thread_args->accept_token = (gss_buffer_desc) {0};
         thread_args->accept_token_ready = GLOBUS_FALSE;
         thread_args->accept_done = GLOBUS_FALSE;
+        thread_args->failed = GLOBUS_FALSE;
         context_handle = GSS_C_NO_CONTEXT;
         globus_mutex_unlock(&thread_args->mutex);
 
@@ -236,7 +239,7 @@ client_func(
             }
             major_status = gss_init_sec_context(
                     &minor_status,
-                    credential,
+                    thread_args->credential,
                     &context_handle,
                     NULL, // target_name
                     GSS_C_NO_OID, // mech_type
@@ -266,6 +269,11 @@ client_func(
         }
         while (major_status == GSS_S_CONTINUE_NEEDED);
         thread_args->init_done = GLOBUS_TRUE;
+        if (major_status != GSS_S_COMPLETE)
+        {
+            thread_args->failed = GLOBUS_TRUE;
+            globus_cond_signal(&thread_args->cond);
+        }
         while ((!thread_args->init_done) || (!thread_args->accept_done))
 	{
             globus_cond_wait(&thread_args->cond, &thread_args->mutex);

@@ -33,6 +33,7 @@
 #define strncasecmp strnicmp
 #else
 #include <strings.h>
+#include <pwd.h>
 #endif
 
 static int globus_l_gsi_gssapi_activate(void);
@@ -54,12 +55,21 @@ int                                     globus_i_gsi_gssapi_debug_level;
 FILE *                                  globus_i_gsi_gssapi_debug_fstream;
 
 /**
- * @brief Force TLSv1
+ * @brief Minimum TLS protocol version
  * @details
- * Optionally force use of TLSv1 if GLOBUS_GSSAPI_FORCE_TLS is defined
- * in the environment.
+ * Choose the minimum TLS protocol version to support. One of TLS1_VERSION,
+ * TLS1_1_VERSION, TLS1_2_VERSION or 0 for lowest (TLS1_VERSION). SSLv3
+ * and below disallowed.
  */
-int                                     globus_i_gsi_gssapi_force_tls;
+int                               globus_i_gsi_gssapi_min_tls_protocol;
+
+/**
+ * @brief Maximum TLS protocol version
+ * @details
+ * Choose the maximum TLS protocol version to support. One of TLS1_VERSION,
+ * TLS1_1_VERSION, TLS1_2_VERSION or 0 for highest. SSLv3 and below disallowed.
+ */
+int                               globus_i_gsi_gssapi_max_tls_protocol;
 
 /**
  * @brief SSL Cipher List
@@ -67,6 +77,10 @@ int                                     globus_i_gsi_gssapi_force_tls;
  * Choose the default set of ciphers to support
  */
 const char *                            globus_i_gsi_gssapi_cipher_list;
+/**
+ * @brief VHost cert owner
+ */
+uid_t                                   globus_i_gsi_gssapi_vhost_cred_owner;
 
 /**
  * @brief Honor Server SSL Cipher List Order
@@ -76,6 +90,9 @@ const char *                            globus_i_gsi_gssapi_cipher_list;
  */
 globus_bool_t                           globus_i_gsi_gssapi_server_cipher_order ;
 
+globus_bool_t                           globus_i_backward_compatible_mic = GLOBUS_TRUE;
+
+globus_bool_t                           globus_i_accept_backward_compatible_mic = GLOBUS_TRUE;
 /**
  * Module descriptor static initializer.
  */
@@ -234,10 +251,13 @@ globus_l_gsi_gssapi_parse_config(
     int                                 rc = GLOBUS_SUCCESS;
     const char                          conf_key_prefix[] = "GLOBUS_GSSAPI_";
     const char                         *conf_keys[] = {
-        "GLOBUS_GSSAPI_FORCE_TLS",
         "GLOBUS_GSSAPI_NAME_COMPATIBILITY",
+        "GLOBUS_GSSAPI_MIN_TLS_PROTOCOL",
+        "GLOBUS_GSSAPI_MAX_TLS_PROTOCOL",
         "GLOBUS_GSSAPI_CIPHERS",
         "GLOBUS_GSSAPI_SERVER_CIPHER_ORDER",
+        "GLOBUS_GSSAPI_BACKWARD_COMPATIBLE_MIC",
+        "GLOBUS_GSSAPI_VHOST_CRED_OWNER",
         NULL
     };
 
@@ -334,6 +354,8 @@ globus_l_gsi_gssapi_activate(void)
             goto strdup_default_data_fail;
         }
     }
+    /* Don't allow an environment override */
+    globus_libc_unsetenv("GLOBUS_GSSAPI_VHOST_CRED_OWNER");
     rc = globus_l_gsi_gssapi_parse_config(gsi_conf_data);
     if (rc != GLOBUS_SUCCESS)
     {
@@ -371,15 +393,6 @@ globus_l_gsi_gssapi_activate(void)
         }
     }
 
-    tmp_string = globus_module_getenv("GLOBUS_GSSAPI_FORCE_TLS");
-    if(tmp_string != GLOBUS_NULL && 
-         (strcasecmp(tmp_string, "true") == 0 ||
-            strcasecmp(tmp_string, "yes") == 0 ||
-            strcmp(tmp_string, "1") == 0))
-    {
-            globus_i_gsi_gssapi_force_tls = 1;
-    }
-
     tmp_string = globus_module_getenv("GLOBUS_GSSAPI_NAME_COMPATIBILITY");
     if(tmp_string != NULL)
     {
@@ -409,6 +422,74 @@ globus_l_gsi_gssapi_activate(void)
         gss_i_name_compatibility_mode = GSS_I_COMPATIBILITY_STRICT_RFC2818;
     }
 
+    tmp_string = globus_module_getenv("GLOBUS_GSSAPI_MIN_TLS_PROTOCOL");
+    if(tmp_string != NULL)
+    {
+        if (strcmp(tmp_string, "TLS1_VERSION") == 0)
+        {
+            globus_i_gsi_gssapi_min_tls_protocol = TLS1_VERSION;
+        }
+        else if (strcmp(tmp_string, "TLS1_1_VERSION") == 0)
+        {
+            globus_i_gsi_gssapi_min_tls_protocol = TLS1_1_VERSION;
+        }
+        else if (strcmp(tmp_string, "TLS1_2_VERSION") == 0)
+        {
+            globus_i_gsi_gssapi_min_tls_protocol = TLS1_2_VERSION;
+        }
+        else if (strcmp(tmp_string, "0") == 0)
+        {
+            globus_i_gsi_gssapi_min_tls_protocol = 0;
+        }
+        else
+        {
+            GLOBUS_I_GSI_GSSAPI_DEBUG_PRINT(
+                1,
+                (_GGSL("Unknown GLOBUS_GSSAPI_MIN_TLS_PROTOCOL value: %s;"
+                       "defaulting to TLS1_VERSION\n"),
+                        tmp_string));
+            globus_i_gsi_gssapi_min_tls_protocol = TLS1_VERSION;
+        }
+    }
+    else
+    {
+        globus_i_gsi_gssapi_min_tls_protocol = TLS1_VERSION;
+    }
+
+    tmp_string = globus_module_getenv("GLOBUS_GSSAPI_MAX_TLS_PROTOCOL");
+    if(tmp_string != NULL)
+    {
+        if (strcmp(tmp_string, "TLS1_VERSION") == 0)
+        {
+            globus_i_gsi_gssapi_max_tls_protocol = TLS1_VERSION;
+        }
+        else if (strcmp(tmp_string, "TLS1_1_VERSION") == 0)
+        {
+            globus_i_gsi_gssapi_max_tls_protocol = TLS1_1_VERSION;
+        }
+        else if (strcmp(tmp_string, "TLS1_2_VERSION") == 0)
+        {
+            globus_i_gsi_gssapi_max_tls_protocol = TLS1_2_VERSION;
+        }
+        else if (strcmp(tmp_string, "0") == 0)
+        {
+            globus_i_gsi_gssapi_max_tls_protocol = 0;
+        }
+        else
+        {
+            GLOBUS_I_GSI_GSSAPI_DEBUG_PRINT(
+                1,
+                (_GGSL("Unknown GLOBUS_GSSAPI_MIN_TLS_PROTOCOL value: %s;"
+                       "defaulting to 0 (highest)\n"),
+                        tmp_string));
+            globus_i_gsi_gssapi_max_tls_protocol = 0;
+        }
+    }
+    else
+    {
+        globus_i_gsi_gssapi_max_tls_protocol = 0;
+    }
+
     tmp_string = globus_module_getenv("GLOBUS_GSSAPI_CIPHERS");
     if (tmp_string != NULL)
     {
@@ -424,6 +505,60 @@ globus_l_gsi_gssapi_activate(void)
         {
             globus_i_gsi_gssapi_server_cipher_order = GLOBUS_TRUE;
         }
+    }
+#ifndef WIN32
+    tmp_string = globus_module_getenv("GLOBUS_GSSAPI_VHOST_CRED_OWNER");
+    if(tmp_string != GLOBUS_NULL)
+    {
+        long                            buflen = -1;
+        buflen = sysconf(_SC_GETPW_R_SIZE_MAX);
+
+        assert(buflen > 0);
+        char buffer[buflen];
+        struct passwd pwd = {0};
+        struct passwd *res = NULL;
+        
+        rc = getpwnam_r(tmp_string, &pwd, buffer, (size_t) buflen, &res);
+
+        if (rc == 0)
+        {
+            globus_i_gsi_gssapi_vhost_cred_owner = pwd.pw_uid;
+        }
+        else
+        {
+            globus_i_gsi_gssapi_vhost_cred_owner = 0;
+        }
+    }
+#endif
+
+    if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+    {
+        globus_i_backward_compatible_mic = GLOBUS_TRUE;
+        globus_i_accept_backward_compatible_mic = GLOBUS_TRUE;
+
+        tmp_string = globus_module_getenv(
+                "GLOBUS_GSSAPI_BACKWARD_COMPATIBLE_MIC");
+        if (tmp_string != NULL
+            && (strcasecmp(tmp_string, "false") == 0 ||
+            strcasecmp(tmp_string, "no") == 0 ||
+            strcmp(tmp_string, "0") == 0))
+        {
+            globus_i_backward_compatible_mic = GLOBUS_FALSE;
+        }
+        tmp_string = globus_module_getenv(
+                "GLOBUS_GSSAPI_ACCEPT_BACKWARD_COMPATIBLE_MIC");
+        if (tmp_string != NULL
+            && (strcasecmp(tmp_string, "false") == 0 ||
+            strcasecmp(tmp_string, "no") == 0 ||
+            strcmp(tmp_string, "0") == 0))
+        {
+            globus_i_accept_backward_compatible_mic = GLOBUS_FALSE;
+        }
+    }
+    else
+    {
+        globus_i_backward_compatible_mic = GLOBUS_FALSE;
+        globus_i_accept_backward_compatible_mic = GLOBUS_FALSE;
     }
 
     rc = globus_module_activate(GLOBUS_OPENSSL_MODULE);

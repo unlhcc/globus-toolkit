@@ -1,3 +1,15 @@
+globus-net-manager (0.17-1+gt6.@distro@) @distro@; urgency=low
+
+  * Fix .pc typo
+
+ -- Globus Toolkit <support@globus.org>  Tue, 04 Apr 2017 12:22:23 -0400
+
+globus-net-manager (0.16-1+gt6.@distro@) @distro@; urgency=low
+
+  * exclude tests from doc
+
+ -- Globus Toolkit <support@globus.org>  Thu, 08 Sep 2016 15:44:14 -0400
+
 globus-net-manager (0.15-1+gt6.@distro@) @distro@; urgency=low
 
   * Use prelinks for tests so that they run on El Capitan
